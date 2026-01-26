@@ -84,6 +84,7 @@ def main():
                 %s,
                 %s
             )
+            ON CONFLICT (name) DO NOTHING
         """, (
             "bathing_water",
             item.get("name", {}).get("_value"),
@@ -95,7 +96,9 @@ def main():
             Json(item)
         ))
 
-        inserted += 1
+        # rowcount is 1 only if inserted
+        if cur.rowcount == 1:
+            inserted += 1
 
     conn.commit()
     cur.close()
@@ -106,3 +109,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

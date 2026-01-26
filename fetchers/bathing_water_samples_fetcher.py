@@ -5,12 +5,13 @@ from datetime import date
 
 # Fixed Phase 1 identifiers (do not infer)
 SITE_ID = "904bad11-27be-4742-8ad0-6dd1ad829ec3"
-SAMPLING_POINT_ID = "11947"
 
 SAMPLE_URL = (
     "http://environment.data.gov.uk/data/bathing-water-quality/"
     "in-season/sample/point/11947/date/20250923/time/140100/recordDate/20250923.json"
 )
+
+SAMPLE_DATE = date(2025, 9, 23)
 
 def main():
     r = requests.get(SAMPLE_URL)
@@ -19,14 +20,12 @@ def main():
 
     topic = data["result"]["primaryTopic"]
 
-    # Extract measurements
     ecoli = topic.get("escherichiaColiCount")
     enterococci = topic.get("intestinalEnterococciCount")
 
     conn = psycopg2.connect(dbname="water_quality")
     cur = conn.cursor()
 
-    # Insert source record
     cur.execute("""
         INSERT INTO sources (
             provider,
@@ -47,7 +46,8 @@ def main():
     ))
     source_id = cur.fetchone()[0]
 
-    # Insert E. coli sample
+    inserted = 0
+
     if ecoli is not None:
         cur.execute("""
             INSERT INTO samples (
@@ -60,17 +60,19 @@ def main():
                 raw_metadata
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (site_id, sample_date, parameter) DO NOTHING
         """, (
             SITE_ID,
-            date(2025, 9, 23),
+            SAMPLE_DATE,
             "escherichia_coli",
             ecoli,
             "cfu/100ml",
             source_id,
             Json({"count": ecoli})
         ))
+        if cur.rowcount == 1:
+            inserted += 1
 
-    # Insert Enterococci sample
     if enterococci is not None:
         cur.execute("""
             INSERT INTO samples (
@@ -83,21 +85,24 @@ def main():
                 raw_metadata
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (site_id, sample_date, parameter) DO NOTHING
         """, (
             SITE_ID,
-            date(2025, 9, 23),
+            SAMPLE_DATE,
             "intestinal_enterococci",
             enterococci,
             "cfu/100ml",
             source_id,
             Json({"count": enterococci})
         ))
+        if cur.rowcount == 1:
+            inserted += 1
 
     conn.commit()
     cur.close()
     conn.close()
 
-    print("Inserted bathing water samples for Wallingford Beach, River Thames.")
+    print(f"Inserted {inserted} sample rows for Wallingford Beach, River Thames.")
 
 if __name__ == "__main__":
     main()
