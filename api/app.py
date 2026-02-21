@@ -4,16 +4,21 @@ Can I Swim Here? — API
 FastAPI backend serving spatial queries and live water quality data
 from the UK Water Pollution Observatory PostGIS database.
 """
+import os
 import pathlib
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from api.db import pool
 from api.routes import nearby, readings, detail, research
+
+# Optional password gate — set SITE_PASSWORD env var to enable.
+_SITE_PASSWORD = os.getenv("SITE_PASSWORD")
 
 _FRONTEND = pathlib.Path(__file__).resolve().parent.parent / "frontend"
 
@@ -155,6 +160,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def password_gate(request: Request, call_next):
+    """If SITE_PASSWORD is set, require HTTP Basic Auth on every request."""
+    if not _SITE_PASSWORD:
+        return await call_next(request)
+    import base64
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth[6:]).decode()
+            _, password = decoded.split(":", 1)
+            if secrets.compare_digest(password, _SITE_PASSWORD):
+                return await call_next(request)
+        except Exception:
+            pass
+    return Response(
+        "Unauthorized",
+        status_code=401,
+        headers={"WWW-Authenticate": 'Basic realm="Can I Swim Here?"'},
+    )
+
 
 app.include_router(nearby.router, prefix="/api")
 app.include_router(readings.router, prefix="/api")
