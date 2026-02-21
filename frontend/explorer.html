@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Explorer — Can I Swim Here?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7fafc; color: #2d3748; }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  #header {
+    background: #1a365d; color: #fff;
+    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15); z-index: 1000; position: relative;
+  }
+  #header h1 { font-size: 1.3rem; font-weight: 700; white-space: nowrap; }
+  #header .spacer { flex: 1; }
+  #header a.nav-link {
+    color: #cbd5e0; text-decoration: none; font-weight: 600; font-size: .9rem; white-space: nowrap;
+  }
+  #header a.nav-link:hover { color: #fff; text-decoration: underline; }
+  #header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
+
+  /* ── Tabs ─────────────────────────────────────────────────── */
+  .tabs {
+    display: flex; gap: 0; background: #fff; border-bottom: 2px solid #e2e8f0;
+    padding: 0 20px; overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 20px; font-size: .85rem; font-weight: 600; color: #718096;
+    cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap;
+    transition: color .15s, border-color .15s;
+  }
+  .tab:hover { color: #2d3748; }
+  .tab.active { color: #1a365d; border-bottom-color: #1a365d; }
+
+  /* ── Content area ────────────────────────────────────────── */
+  .content { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Stat cards ──────────────────────────────────────────── */
+  .stat-cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #fff; border-radius: 8px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center;
+  }
+  .stat-card .number { font-size: 2rem; font-weight: 800; color: #1a365d; }
+  .stat-card .label { font-size: .75rem; color: #718096; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+
+  /* ── Tables ──────────────────────────────────────────────── */
+  .table-wrap { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  thead th {
+    background: #f7fafc; padding: 10px 14px; text-align: left;
+    font-size: .75rem; text-transform: uppercase; letter-spacing: .5px;
+    color: #718096; border-bottom: 2px solid #e2e8f0;
+    cursor: pointer; white-space: nowrap; user-select: none;
+  }
+  thead th:hover { color: #2d3748; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+  tbody tr:hover { background: #f7fafc; }
+  tbody tr { cursor: default; }
+
+  /* Bar visualisation in cells */
+  .bar-cell { position: relative; min-width: 120px; }
+  .bar-bg {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    height: 20px; border-radius: 3px; opacity: .15;
+  }
+  .bar-value { position: relative; z-index: 1; font-weight: 600; }
+
+  /* ── Filter bar ──────────────────────────────────────────── */
+  .filter-bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
+    margin-bottom: 16px; padding: 16px; background: #fff;
+    border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 3px; }
+  .filter-group label { font-size: .7rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .3px; }
+  .filter-group input, .filter-group select {
+    padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 5px;
+    font-size: .82rem; background: #fff; color: #2d3748;
+  }
+  .filter-group input:focus, .filter-group select:focus { outline: none; border-color: #1a365d; }
+  .filter-group input[type="checkbox"] { width: 16px; height: 16px; margin: 4px 0; }
+
+  .btn {
+    padding: 7px 16px; border: none; border-radius: 5px; font-size: .82rem;
+    font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s;
+  }
+  .btn-primary { background: #1a365d; color: #fff; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-secondary { background: #e2e8f0; color: #4a5568; }
+  .btn-secondary:hover { background: #cbd5e0; }
+  .btn-csv { background: #38a169; color: #fff; }
+  .btn-csv:hover { background: #2f855a; }
+
+  /* ── Pagination ──────────────────────────────────────────── */
+  .pagination {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; font-size: .82rem; color: #718096;
+  }
+  .pagination .page-btns { display: flex; gap: 6px; }
+
+  /* ── Loading / empty states ──────────────────────────────── */
+  .loading-msg { text-align: center; padding: 40px; color: #718096; font-size: .9rem; }
+  .empty-msg { text-align: center; padding: 40px; color: #a0aec0; font-size: .9rem; font-style: italic; }
+
+  /* ── Badges (reuse swim map palette) ─────────────────────── */
+  .badge {
+    display: inline-block; font-size: .65rem; padding: 1px 6px;
+    border-radius: 3px; font-weight: 600;
+  }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-amber { background: #fefcbf; color: #975a16; }
+  .badge-red   { background: #fed7d7; color: #9b2c2c; }
+  .badge-grey  { background: #e2e8f0; color: #4a5568; }
+
+  /* ── Detail overlay ──────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 2000;
+  }
+  .overlay.visible { display: flex; }
+  .overlay-card {
+    background: rgba(255,255,255,0.98); width: min(720px, 94vw);
+    max-height: 90vh; overflow-y: auto;
+    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; }
+  .overlay-title { font-size: 1.1rem; font-weight: 800; color: #1a365d; }
+  .overlay-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #4a5568; }
+  .overlay-body { padding: 16px 18px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; font-size: .85rem; margin-bottom: 16px; }
+  .detail-grid dt { color: #718096; font-weight: 600; }
+  .detail-grid dd { color: #2d3748; }
+  .detail-sub { margin-top: 16px; }
+  .detail-sub h4 { font-size: .78rem; text-transform: uppercase; letter-spacing: .4px; color: #718096; margin-bottom: 8px; }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .stat-cards { grid-template-columns: 1fr 1fr; }
+    .filter-bar { flex-direction: column; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .tabs { padding: 0 8px; }
+    .tab { padding: 10px 12px; font-size: .8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1><a href="/" style="color:#fff;text-decoration:none">🏊 Can I Swim Here?</a> <span style="font-weight:400;color:#cbd5e0">— Data Explorer</span></h1>
+  <span class="spacer"></span>
+  <a href="/" class="nav-link">Swim Map</a>
+  <a href="/explorer" class="nav-link active">Data Explorer</a>
+  <a href="/docs" class="nav-link">API Docs</a>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="companies">Companies</div>
+  <div class="tab" data-tab="overflows">Overflows</div>
+  <div class="tab" data-tab="rivers">Rivers &amp; Seas</div>
+  <div class="tab" data-tab="bathing">Bathing Impact</div>
+</div>
+
+<div class="content">
+
+  <!-- ════ OVERVIEW TAB ═══════════════════════════════════════ -->
+  <div id="tab-overview" class="tab-panel active">
+    <div class="loading-msg" id="overview-loading">Loading national overview…</div>
+    <div id="overview-content" style="display:none">
+      <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px;line-height:1.6;font-size:.9rem;color:#2d3748">
+        <p style="margin:0 0 10px">Welcome to the <strong>Can I Swim Here? Data Explorer</strong> — a research tool for journalists, campaigners, and anyone who wants to dig into sewage overflow data across England, Wales and Scotland.</p>
+        <p style="margin:0 0 10px">This dashboard draws on open data from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, spill counts from the 2024 EDM annual return, and bathing water classifications. Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
+        <p style="margin:0;color:#718096;font-size:.82rem">All data can be downloaded as CSV for your own analysis. For programmatic access, see the <a href="/docs" style="color:#3182ce">API documentation</a>.</p>
+      </div>
+      <div class="stat-cards" id="overview-stats"></div>
+      <h3 style="margin-bottom:12px;color:#1a365d;font-size:.95rem">Breakdown by Water Company</h3>
+      <div class="table-wrap">
+        <table id="overview-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Overflows</th>
+              <th>Total Spills</th>
+              <th>Avg Spills</th>
+              <th>Max Spills</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-top:20px;line-height:1.6;font-size:.9rem;color:#2d3748">
+        <p style="margin:0 0 10px;font-weight:700;color:#1a365d">Support This Project</p>
+        <p style="margin:0 0 10px">Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
+        <p style="margin:0 0 10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
+        <p style="margin:0;color:#718096;font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ COMPANIES TAB ══════════════════════════════════════ -->
+  <div id="tab-companies" class="tab-panel">
+    <div class="loading-msg" id="companies-loading">Loading company data…</div>
+    <div id="companies-content" style="display:none">
+      <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">How do the UK's water companies compare on sewage spills? This leaderboard ranks companies by total spills reported in the 2024 EDM annual return. The <strong>EDM Uptime %</strong> column shows average monitor reliability — lower uptime means more spills may have gone unrecorded.</p>
+      <div class="table-wrap">
+        <table id="companies-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Overflows</th>
+              <th>With Spills</th>
+              <th>Total Spills</th>
+              <th>Avg Spills</th>
+              <th>Max Spills</th>
+              <th>EDM Uptime %</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ OVERFLOWS TAB ══════════════════════════════════════ -->
+  <div id="tab-overflows" class="tab-panel">
+    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Search and filter all 18,000+ storm overflows across England, Wales and Scotland. Narrow by water company, spill count, receiving water, or proximity to a bathing water. Click any row for full permit details and annual return data. Use the CSV button to download your current filtered results.</p>
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Site name</label>
+        <input type="text" id="ov-name" placeholder="e.g. Whitchurch" style="width:150px">
+      </div>
+      <div class="filter-group">
+        <label>Company</label>
+        <select id="ov-company">
+          <option value="">All companies</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Min spills</label>
+        <input type="number" id="ov-min" min="0" placeholder="0" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Max spills</label>
+        <input type="number" id="ov-max" min="0" placeholder="Any" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Receiving water</label>
+        <input type="text" id="ov-water" placeholder="e.g. Thames" style="width:140px">
+      </div>
+      <div class="filter-group">
+        <label>Near bathing</label>
+        <input type="checkbox" id="ov-bathing">
+      </div>
+      <button class="btn btn-primary" onclick="loadOverflows(true)">Search</button>
+      <button class="btn btn-csv" onclick="downloadOverflowsCsv()">⬇ CSV</button>
+    </div>
+    <div id="overflows-content">
+      <div class="loading-msg" id="overflows-loading" style="display:none">Searching overflows…</div>
+      <div class="table-wrap">
+        <table id="overflows-table">
+          <thead>
+            <tr>
+              <th data-sort="name">Site Name</th>
+              <th data-sort="company">Company</th>
+              <th data-sort="spills_desc">Spills ▾</th>
+              <th>Duration</th>
+              <th>EDM %</th>
+              <th>Receiving Water</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="overflows-pagination">
+        <span id="ov-page-info"></span>
+        <div class="page-btns">
+          <button class="btn btn-secondary" id="ov-prev" onclick="ovPage(-1)">← Prev</button>
+          <button class="btn btn-secondary" id="ov-next" onclick="ovPage(1)">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ RIVERS & SEAS TAB ══════════════════════════════════ -->
+  <div id="tab-rivers" class="tab-panel">
+    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Which rivers, estuaries, and coastal waters receive the most sewage overflow discharges? This table ranks receiving waters by total spills from all overflows that discharge into them. A single river may receive discharges from multiple water companies.</p>
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>River / Sea</label>
+        <input type="text" id="rv-name" placeholder="e.g. Thames" style="width:150px">
+      </div>
+      <div class="filter-group">
+        <label>Company</label>
+        <input type="text" id="rv-company" placeholder="All" style="width:160px">
+      </div>
+      <div class="filter-group">
+        <label>Min overflows</label>
+        <input type="number" id="rv-min" min="1" value="2" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Results</label>
+        <input type="number" id="rv-limit" min="1" max="500" value="50" style="width:80px">
+      </div>
+      <button class="btn btn-primary" onclick="loadRivers()">Search</button>
+      <button class="btn btn-csv" onclick="downloadRiversCsv()">⬇ CSV</button>
+    </div>
+    <div class="loading-msg" id="rivers-loading" style="display:none">Loading rivers &amp; seas…</div>
+    <div id="rivers-content" style="display:none">
+      <div class="table-wrap">
+        <table id="rivers-table">
+          <thead>
+            <tr>
+              <th>Receiving Water</th>
+              <th>Overflows</th>
+              <th>Total Spills</th>
+              <th>Avg Spills</th>
+              <th>Max Spills</th>
+              <th>Companies</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ BATHING IMPACT TAB ═════════════════════════════════ -->
+  <div id="tab-bathing" class="tab-panel">
+    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Which designated bathing waters are most threatened by nearby storm overflows? This view cross-references every bathing water across England, Wales and Scotland with overflow locations within a given radius, counting the total spills from all nearby outfalls. Distances are straight-line — actual waterway paths may differ.</p>
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Bathing water</label>
+        <input type="text" id="bi-name" placeholder="e.g. Whitmore Bay" style="width:150px">
+      </div>
+      <div class="filter-group">
+        <label>Search radius (km)</label>
+        <input type="number" id="bi-radius" min="0.5" max="50" step="0.5" value="5" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Min nearby spills</label>
+        <input type="number" id="bi-min" min="0" placeholder="Any" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Results</label>
+        <input type="number" id="bi-limit" min="1" max="500" value="50" style="width:80px">
+      </div>
+      <button class="btn btn-primary" onclick="loadBathing()">Search</button>
+      <button class="btn btn-csv" onclick="downloadBathingCsv()">⬇ CSV</button>
+    </div>
+    <div class="loading-msg" id="bathing-loading" style="display:none">Loading bathing impact…</div>
+    <div id="bathing-content" style="display:none">
+      <div class="table-wrap">
+        <table id="bathing-table">
+          <thead>
+            <tr>
+              <th>Bathing Water</th>
+              <th>Overflows Nearby</th>
+              <th>Within 1 km</th>
+              <th>Within 2 km</th>
+              <th>Total Spills</th>
+              <th>Worst Single</th>
+              <th>Nearest (m)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Overflow detail overlay -->
+<div id="detail-overlay" class="overlay" onclick="if(event.target===this)this.classList.remove('visible')">
+  <div class="overlay-card" onclick="event.stopPropagation()">
+    <div class="overlay-header">
+      <div class="overlay-title" id="detail-title">Overflow Detail</div>
+      <button class="overlay-close" onclick="document.getElementById('detail-overlay').classList.remove('visible')">&times;</button>
+    </div>
+    <div class="overlay-body" id="detail-body"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/research';
+
+// ── Tab switching ─────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panels = document.querySelectorAll('.tab-panel');
+const loaded = {};
+
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(x => x.classList.remove('active'));
+  panels.forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  const key = t.dataset.tab;
+  document.getElementById('tab-' + key).classList.add('active');
+  if (!loaded[key]) { loaders[key](); loaded[key] = true; }
+}));
+
+const loaders = {
+  overview: loadOverview,
+  companies: loadCompanies,
+  overflows: () => loadOverflows(true),
+  rivers: loadRivers,
+  bathing: loadBathing,
+};
+
+// ── Helpers ───────────────────────────────────────────────────
+function num(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+function pct(n) { return n != null ? n.toFixed(1) + '%' : '—'; }
+function spillBadge(n) {
+  if (n == null) return '<span class="badge badge-grey">No data</span>';
+  if (n > 50) return '<span class="badge badge-red">' + num(n) + '</span>';
+  if (n > 10) return '<span class="badge badge-amber">' + num(n) + '</span>';
+  return '<span class="badge badge-green">' + num(n) + '</span>';
+}
+
+// ══════════════════════════════════════════════════════════════
+// 1. OVERVIEW
+// ══════════════════════════════════════════════════════════════
+async function loadOverview() {
+  try {
+    const resp = await fetch(API + '/overview');
+    const data = await resp.json();
+    const n = data.national;
+    document.getElementById('overview-stats').innerHTML = [
+      { n: num(n.total_overflows), l: 'Total Overflows' },
+      { n: num(n.overflows_reporting), l: 'Reporting (EDM)' },
+      { n: num(n.total_spills_2024), l: 'Total Spills 2024' },
+      { n: n.avg_spills_per_overflow, l: 'Avg Spills / Overflow' },
+      { n: num(n.max_spills_single_overflow), l: 'Worst Single Overflow' },
+    ].map(s => `<div class="stat-card"><div class="number">${s.n}</div><div class="label">${s.l}</div></div>`).join('');
+
+    const maxSpills = Math.max(...data.by_company.map(c => c.total_spills));
+    document.querySelector('#overview-table tbody').innerHTML = data.by_company.map(c => `
+      <tr>
+        <td style="font-weight:600">${c.company}</td>
+        <td>${num(c.overflow_count)}</td>
+        <td class="bar-cell">
+          <div class="bar-bg" style="width:${(c.total_spills / maxSpills * 100).toFixed(0)}%;background:#e53e3e"></div>
+          <span class="bar-value">${num(c.total_spills)}</span>
+        </td>
+        <td>${c.avg_spills}</td>
+        <td>${num(c.max_spills)}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('overview-loading').style.display = 'none';
+    document.getElementById('overview-content').style.display = 'block';
+  } catch (e) {
+    document.getElementById('overview-loading').textContent = 'Failed to load overview data.';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 2. COMPANIES
+// ══════════════════════════════════════════════════════════════
+async function loadCompanies() {
+  try {
+    const resp = await fetch(API + '/companies');
+    const data = await resp.json();
+    const maxSpills = Math.max(...data.map(c => c.total_spills));
+    document.querySelector('#companies-table tbody').innerHTML = data.map(c => `
+      <tr>
+        <td style="font-weight:600">${c.company}</td>
+        <td>${num(c.overflow_count)}</td>
+        <td>${num(c.overflows_with_spills)}</td>
+        <td class="bar-cell">
+          <div class="bar-bg" style="width:${(c.total_spills / maxSpills * 100).toFixed(0)}%;background:#e53e3e"></div>
+          <span class="bar-value">${num(c.total_spills)}</span>
+        </td>
+        <td>${c.avg_spills_per_overflow}</td>
+        <td>${num(c.max_spills_single_overflow)}</td>
+        <td>${c.avg_edm_operational_pct != null ? pct(c.avg_edm_operational_pct) : '—'}</td>
+      </tr>
+    `).join('');
+    document.getElementById('companies-loading').style.display = 'none';
+    document.getElementById('companies-content').style.display = 'block';
+  } catch (e) {
+    document.getElementById('companies-loading').textContent = 'Failed to load company data.';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 3. OVERFLOWS (filterable, paginated)
+// ══════════════════════════════════════════════════════════════
+let ovOffset = 0;
+const ovLimit = 50;
+let ovTotal = 0;
+let ovSort = 'spills_desc';
+
+function buildOverflowParams() {
+  const p = new URLSearchParams();
+  const siteName = document.getElementById('ov-name').value.trim();
+  const company = document.getElementById('ov-company').value;
+  const min = document.getElementById('ov-min').value;
+  const max = document.getElementById('ov-max').value;
+  const water = document.getElementById('ov-water').value.trim();
+  const bathing = document.getElementById('ov-bathing').checked;
+  if (siteName) p.set('site_name', siteName);
+  if (company) p.set('company', company);
+  if (min) p.set('min_spills', min);
+  if (max) p.set('max_spills', max);
+  if (water) p.set('receiving_water', water);
+  if (bathing) p.set('near_bathing', 'true');
+  p.set('sort', ovSort);
+  p.set('limit', ovLimit);
+  p.set('offset', ovOffset);
+  return p;
+}
+
+async function loadOverflows(reset) {
+  if (reset) ovOffset = 0;
+  const loading = document.getElementById('overflows-loading');
+  loading.style.display = 'block';
+  try {
+    const p = buildOverflowParams();
+    const resp = await fetch(API + '/overflows?' + p.toString());
+    const data = await resp.json();
+    ovTotal = data.total;
+    const tbody = document.querySelector('#overflows-table tbody');
+    if (data.results.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">No overflows match your filters.</td></tr>';
+    } else {
+      tbody.innerHTML = data.results.map(r => `
+        <tr onclick="showOverflowDetail('${r.unique_id}')" style="cursor:pointer">
+          <td style="font-weight:600;color:#1a365d">${r.site_name || r.unique_id}</td>
+          <td>${r.water_company || ''}</td>
+          <td>${spillBadge(r.spills_2024)}</td>
+          <td style="font-size:.78rem">${r.duration_2024 || '—'}</td>
+          <td>${r.edm_operational_pct != null ? pct(r.edm_operational_pct) : '—'}</td>
+          <td>${r.receiving_water || '—'}</td>
+          <td style="font-size:.78rem">${r.asset_type || '—'}</td>
+        </tr>
+      `).join('');
+    }
+    // Pagination info
+    const from = ovTotal === 0 ? 0 : ovOffset + 1;
+    const to = Math.min(ovOffset + ovLimit, ovTotal);
+    document.getElementById('ov-page-info').textContent = `Showing ${from}–${to} of ${num(ovTotal)}`;
+    document.getElementById('ov-prev').disabled = ovOffset === 0;
+    document.getElementById('ov-next').disabled = ovOffset + ovLimit >= ovTotal;
+  } catch (e) {
+    document.querySelector('#overflows-table tbody').innerHTML =
+      '<tr><td colspan="7" class="empty-msg">Failed to load overflows.</td></tr>';
+  }
+  loading.style.display = 'none';
+}
+
+function ovPage(dir) {
+  ovOffset += dir * ovLimit;
+  if (ovOffset < 0) ovOffset = 0;
+  loadOverflows(false);
+}
+
+function downloadOverflowsCsv() {
+  const p = buildOverflowParams();
+  p.set('format', 'csv');
+  p.set('limit', '500');
+  p.set('offset', '0');
+  window.open(API + '/overflows?' + p.toString(), '_blank');
+}
+
+// Column sort
+document.querySelectorAll('#overflows-table thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const s = th.dataset.sort;
+    if (s) { ovSort = s; loadOverflows(true); }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// 4. RIVERS & SEAS
+// ══════════════════════════════════════════════════════════════
+async function loadRivers() {
+  const loading = document.getElementById('rivers-loading');
+  loading.style.display = 'block';
+  document.getElementById('rivers-content').style.display = 'none';
+  try {
+    const p = new URLSearchParams();
+    const rvName = document.getElementById('rv-name').value.trim();
+    const company = document.getElementById('rv-company').value.trim();
+    const min = document.getElementById('rv-min').value;
+    const limit = document.getElementById('rv-limit').value;
+    if (rvName) p.set('name', rvName);
+    if (company) p.set('company', company);
+    if (min) p.set('min_overflows', min);
+    if (limit) p.set('limit', limit);
+    const resp = await fetch(API + '/receiving-waters?' + p.toString());
+    const data = await resp.json();
+    const maxSpills = Math.max(...data.map(r => r.total_spills), 1);
+    document.querySelector('#rivers-table tbody').innerHTML = data.length === 0
+      ? '<tr><td colspan="6" class="empty-msg">No receiving waters match your filters.</td></tr>'
+      : data.map(r => `
+        <tr>
+          <td style="font-weight:600">${r.receiving_water}</td>
+          <td>${num(r.overflow_count)}</td>
+          <td class="bar-cell">
+            <div class="bar-bg" style="width:${(r.total_spills / maxSpills * 100).toFixed(0)}%;background:#e53e3e"></div>
+            <span class="bar-value">${num(r.total_spills)}</span>
+          </td>
+          <td>${r.avg_spills}</td>
+          <td>${num(r.max_spills)}</td>
+          <td style="font-size:.78rem">${Array.isArray(r.companies) ? r.companies.join(', ') : r.companies || ''}</td>
+        </tr>
+      `).join('');
+    document.getElementById('rivers-content').style.display = 'block';
+  } catch (e) {
+    document.querySelector('#rivers-table tbody').innerHTML =
+      '<tr><td colspan="6" class="empty-msg">Failed to load data.</td></tr>';
+    document.getElementById('rivers-content').style.display = 'block';
+  }
+  loading.style.display = 'none';
+}
+
+function downloadRiversCsv() {
+  const p = new URLSearchParams();
+  const rvName = document.getElementById('rv-name').value.trim();
+  const company = document.getElementById('rv-company').value.trim();
+  const min = document.getElementById('rv-min').value;
+  const limit = document.getElementById('rv-limit').value;
+  if (rvName) p.set('name', rvName);
+  if (company) p.set('company', company);
+  if (min) p.set('min_overflows', min);
+  if (limit) p.set('limit', limit || '500');
+  p.set('format', 'csv');
+  window.open(API + '/receiving-waters?' + p.toString(), '_blank');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 5. BATHING IMPACT
+// ══════════════════════════════════════════════════════════════
+async function loadBathing() {
+  const loading = document.getElementById('bathing-loading');
+  loading.style.display = 'block';
+  document.getElementById('bathing-content').style.display = 'none';
+  try {
+    const p = new URLSearchParams();
+    const biName = document.getElementById('bi-name').value.trim();
+    const radius = document.getElementById('bi-radius').value;
+    const min = document.getElementById('bi-min').value;
+    const limit = document.getElementById('bi-limit').value;
+    if (biName) p.set('name', biName);
+    if (radius) p.set('max_distance_km', radius);
+    if (min) p.set('min_spills', min);
+    if (limit) p.set('limit', limit);
+    const resp = await fetch(API + '/bathing-impact?' + p.toString());
+    const data = await resp.json();
+    const rows = data.results || [];
+    const maxSpills = Math.max(...rows.map(r => r.total_nearby_spills), 1);
+    document.querySelector('#bathing-table tbody').innerHTML = rows.length === 0
+      ? '<tr><td colspan="7" class="empty-msg">No bathing waters match your filters.</td></tr>'
+      : rows.map(r => `
+        <tr>
+          <td style="font-weight:600">${r.bathing_water}</td>
+          <td>${num(r.overflow_count)}</td>
+          <td>${num(r.within_1km)}</td>
+          <td>${num(r.within_2km)}</td>
+          <td class="bar-cell">
+            <div class="bar-bg" style="width:${(r.total_nearby_spills / maxSpills * 100).toFixed(0)}%;background:#e53e3e"></div>
+            <span class="bar-value">${num(r.total_nearby_spills)}</span>
+          </td>
+          <td>${num(r.worst_single_overflow_spills)}</td>
+          <td>${num(r.nearest_overflow_m)}</td>
+        </tr>
+      `).join('');
+    document.getElementById('bathing-content').style.display = 'block';
+  } catch (e) {
+    document.querySelector('#bathing-table tbody').innerHTML =
+      '<tr><td colspan="7" class="empty-msg">Failed to load data.</td></tr>';
+    document.getElementById('bathing-content').style.display = 'block';
+  }
+  loading.style.display = 'none';
+}
+
+function downloadBathingCsv() {
+  const p = new URLSearchParams();
+  const biName = document.getElementById('bi-name').value.trim();
+  const radius = document.getElementById('bi-radius').value;
+  const min = document.getElementById('bi-min').value;
+  const limit = document.getElementById('bi-limit').value;
+  if (biName) p.set('name', biName);
+  if (radius) p.set('max_distance_km', radius);
+  if (min) p.set('min_spills', min);
+  if (limit) p.set('limit', limit || '500');
+  p.set('format', 'csv');
+  window.open(API + '/bathing-impact?' + p.toString(), '_blank');
+}
+
+// ══════════════════════════════════════════════════════════════
+// OVERFLOW DETAIL OVERLAY
+// ══════════════════════════════════════════════════════════════
+async function showOverflowDetail(uniqueId) {
+  const overlay = document.getElementById('detail-overlay');
+  const title = document.getElementById('detail-title');
+  const body = document.getElementById('detail-body');
+  title.textContent = 'Loading…';
+  body.innerHTML = '<div class="loading-msg">Fetching overflow details…</div>';
+  overlay.classList.add('visible');
+  try {
+    const resp = await fetch(API + '/overflow/' + encodeURIComponent(uniqueId));
+    const d = await resp.json();
+    if (d.error) { body.innerHTML = '<div class="empty-msg">' + d.error + '</div>'; return; }
+    title.textContent = d.site_name_ea || d.unique_id;
+    let html = '<dl class="detail-grid">';
+    html += dt('Unique ID', d.unique_id);
+    html += dt('EA Name', d.site_name_ea);
+    html += dt('Company Name', d.site_name_wasc);
+    html += dt('Water Company', d.water_company);
+    html += dt('Permit', d.permit_reference);
+    html += dt('Activity', d.activity_reference);
+    html += dt('Asset Type', d.asset_type);
+    html += dt('Discharge NGR', d.discharge_ngr);
+    html += dt('Receiving Water', d.receiving_water);
+    html += dt('WFD Waterbody', d.wfd_waterbody_id);
+    html += dt('WFD Catchment', d.wfd_catchment);
+    if (d.lat && d.lon) html += dt('Location', d.lat.toFixed(5) + ', ' + d.lon.toFixed(5));
+    html += '</dl>';
+
+    // Annual returns
+    if (d.annual_returns && d.annual_returns.length) {
+      html += '<div class="detail-sub"><h4>Annual Returns</h4>';
+      html += '<table style="width:100%;font-size:.82rem"><thead><tr><th>Year</th><th>Spills</th><th>Duration</th><th>EDM %</th><th>Long-term Avg</th></tr></thead><tbody>';
+      d.annual_returns.forEach(a => {
+        html += '<tr><td>' + a.year + '</td><td>' + spillBadge(a.spills) + '</td><td>' + (a.duration || '—') + '</td><td>' + (a.edm_operational_pct != null ? pct(a.edm_operational_pct) : '—') + '</td><td>' + (a.long_term_avg_spills != null ? a.long_term_avg_spills : '—') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // Nearby bathing waters
+    if (d.nearby_bathing_waters && d.nearby_bathing_waters.length) {
+      html += '<div class="detail-sub"><h4>Nearby Bathing Waters</h4>';
+      html += '<table style="width:100%;font-size:.82rem"><thead><tr><th>Name</th><th>Distance</th><th>EUBWID</th></tr></thead><tbody>';
+      d.nearby_bathing_waters.forEach(b => {
+        const dist = b.distance_m >= 1000 ? (b.distance_m / 1000).toFixed(1) + ' km' : b.distance_m + ' m';
+        html += '<tr><td>' + b.name + '</td><td>' + dist + '</td><td style="font-size:.75rem;color:#718096">' + (b.eubwid || '') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = '<div class="empty-msg">Failed to load overflow detail.</div>';
+  }
+}
+
+function dt(label, value) {
+  return '<dt>' + label + '</dt><dd>' + (value || '—') + '</dd>';
+}
+
+// ── Populate company dropdown from overview data ──────────────
+async function populateCompanyDropdown() {
+  try {
+    const resp = await fetch(API + '/companies');
+    const data = await resp.json();
+    const sel = document.getElementById('ov-company');
+    data.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.company;
+      opt.textContent = c.company;
+      sel.appendChild(opt);
+    });
+  } catch (e) { /* silent */ }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+populateCompanyDropdown();
+loadOverview();
+loaded['overview'] = true;
+</script>
+</body>
+</html>

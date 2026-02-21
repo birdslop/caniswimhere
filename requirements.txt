@@ -1,0 +1,18 @@
+certifi==2026.1.4
+charset-normalizer==3.4.4
+et_xmlfile==2.0.0
+idna==3.11
+numpy==2.4.1
+openpyxl==3.1.5
+psycopg2-binary==2.9.11
+pyproj==3.7.2
+requests==2.32.5
+shapely==2.1.2
+urllib3==2.6.3
+
+# API (Can I Swim Here?)
+fastapi==0.129.0
+uvicorn==0.41.0
+psycopg[binary]==3.2.9
+psycopg-pool==3.3.0
+httpx==0.28.1

@@ -1,7 +1,11 @@
 .DS_Store
 __pycache__/
 venv/
+.venv/
 .env
 
 # local editor/backup files
 fetchers/*.bak.*
+
+# data artefacts
+data/

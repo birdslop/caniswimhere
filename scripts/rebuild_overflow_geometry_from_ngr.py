@@ -71,7 +71,8 @@ def parse_ngr(ngr: str):
 def first_valid_ngr(text: str):
     if not text:
         return None
-    m = NGR_RE.search(text.upper())
+    cleaned = text.replace(" ", "").upper()
+    m = NGR_RE.search(cleaned)
     if not m:
         return None
     return m.group(1) + m.group(2)

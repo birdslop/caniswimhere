@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can I Swim Here?</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  #header {
+    background: #1a365d; color: #fff;
+    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    z-index: 1000; position: relative;
+  }
+  #header h1 { font-size: 1.3rem; font-weight: 700; }
+  #header .spacer { flex: 1; }
+  #header a.nav-link {
+    color: #cbd5e0; text-decoration: none; font-weight: 600; font-size: .9rem;
+    white-space: nowrap;
+  }
+  #header a.nav-link:hover { color: #fff; text-decoration: underline; }
+
+  /* Search bar */
+  #search-form {
+    display: flex; align-items: center; gap: 0;
+    background: rgba(255,255,255,.15); border-radius: 6px;
+    overflow: hidden; max-width: 320px; flex: 1;
+  }
+  #search-input {
+    border: none; outline: none; background: transparent;
+    color: #fff; padding: 6px 12px; font-size: .85rem;
+    width: 100%; min-width: 0;
+  }
+  #search-input::placeholder { color: rgba(255,255,255,.5); }
+  #search-btn {
+    background: rgba(255,255,255,.2); border: none; color: #fff;
+    padding: 6px 10px; cursor: pointer; font-size: .85rem;
+    white-space: nowrap;
+  }
+  #search-btn:hover { background: rgba(255,255,255,.3); }
+
+  #map { height: calc(100vh - 52px); width: 100%; }
+
+  #panel {
+    position: absolute; top: 62px; right: 10px; z-index: 1000;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    width: 360px; max-height: calc(100vh - 80px);
+    overflow-y: auto; display: none;
+  }
+  #panel.visible { display: block; }
+  #panel-header {
+    padding: 14px 16px; background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 8px 8px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #panel-header h2 { font-size: 1rem; color: #1a365d; }
+  #panel-close { cursor: pointer; font-size: 1.2rem; color: #718096; border: none; background: none; }
+  #panel-body { padding: 0; }
+
+.section { border-bottom: 1px solid #e2e8f0; }
+  .section:last-child { border-bottom: none; }
+  .section.collapsed .section-items { display: none; }
+  .section-title {
+    padding: 10px 16px; font-size: .8rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: #718096; background: #f7fafc;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-title .left { display: flex; align-items: center; gap: 8px; }
+  .section-title .chev { font-size: .9rem; color: #a0aec0; width: 12px; display: inline-block; }
+  .section-title .count {
+    background: #e2e8f0; border-radius: 10px;
+    padding: 1px 8px; font-size: .75rem;
+  }
+  .section-items { padding: 0; }
+  .item {
+    padding: 8px 16px; border-bottom: 1px solid #f0f0f0;
+    cursor: pointer; transition: background .15s;
+  }
+.item:hover { background: #e2e8f0; }
+  .item:last-child { border-bottom: none; }
+  .item-name { font-weight: 600; font-size: .85rem; color: #2d3748; }
+  .item-detail { font-size: .75rem; color: #718096; margin-top: 2px; }
+  .item-distance {
+    font-size: .7rem; color: #a0aec0; float: right; margin-top: 2px;
+  }
+
+  .badge {
+    display: inline-block; font-size: .65rem; padding: 1px 6px;
+    border-radius: 3px; font-weight: 600; margin-left: 4px;
+  }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-amber { background: #fefcbf; color: #975a16; }
+  .badge-red   { background: #fed7d7; color: #9b2c2c; }
+  .badge-grey  { background: #e2e8f0; color: #4a5568; }
+  .badge-blue  { background: #bee3f8; color: #2a4365; }
+
+  .hint {
+    position: absolute; bottom: 30px; left: 50%;
+    transform: translateX(-50%); z-index: 1000;
+    background: rgba(26,54,93,.9); color: #fff;
+    padding: 10px 20px; border-radius: 8px;
+    font-size: .85rem; pointer-events: none;
+    transition: opacity .5s;
+  }
+  .hint.hidden { opacity: 0; }
+
+  .loading {
+    position: absolute; top: 50%; left: 50%; z-index: 2000;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,.95); padding: 20px 30px;
+    border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    font-size: .9rem; display: none;
+  }
+  .loading.visible { display: block; }
+
+  /* Detail panel */
+  .verdict-banner {
+    padding: 16px; color: #fff; font-weight: 600; font-size: .95rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .verdict-green  { background: #38a169; }
+  .verdict-amber  { background: #d69e2e; }
+  .verdict-red    { background: #e53e3e; }
+  .verdict-icon   { font-size: 1.5rem; }
+  .verdict-text   { font-size: .8rem; font-weight: 400; margin-top: 4px; line-height: 1.4; }
+
+  .detail-section { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+  .detail-section:last-child { border-bottom: none; }
+  .detail-section h3 {
+    font-size: .75rem; text-transform: uppercase; letter-spacing: .5px;
+    color: #718096; margin-bottom: 8px;
+  }
+  .reading-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; font-size: .82rem;
+  }
+  .reading-label { color: #4a5568; }
+  .reading-value { font-weight: 600; color: #2d3748; }
+  .reading-date  { font-size: .7rem; color: #a0aec0; }
+  .reading-assessment { font-size: .7rem; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+
+  .overflow-card {
+    background: #fff5f5; border-radius: 6px; padding: 8px 12px;
+    margin-bottom: 6px; border-left: 3px solid #e53e3e;
+  }
+  .overflow-card .oc-name { font-weight: 600; font-size: .82rem; color: #2d3748; }
+  .overflow-card .oc-detail { font-size: .72rem; color: #718096; margin-top: 2px; }
+
+  /* Live overflow status */
+  .live-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .7rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; text-transform: uppercase;
+  }
+  .live-tag-red { background: #fed7d7; color: #9b2c2c; }
+  .live-tag-green { background: #c6f6d5; color: #276749; }
+  .live-tag-grey { background: #e2e8f0; color: #718096; }
+  .pulse-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; animation: pulse 1.5s infinite;
+  }
+  .pulse-dot-red { background: #e53e3e; }
+  .pulse-dot-green { background: #38a169; animation: none; }
+  @keyframes pulse {
+    0%   { opacity: 1; transform: scale(1); }
+    50%  { opacity: .5; transform: scale(1.3); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .live-card {
+    border-radius: 6px; padding: 8px 12px;
+    margin-bottom: 6px; font-size: .82rem;
+  }
+  .live-card-active { background: #fff5f5; border-left: 3px solid #e53e3e; }
+  .live-card-recent { background: #fffbeb; border-left: 3px solid #d69e2e; }
+  .live-card-ok { background: #f0fff4; border-left: 3px solid #38a169; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat-box {
+    text-align: center; background: #f7fafc; border-radius: 6px; padding: 8px;
+  }
+  .stat-number { font-size: 1.3rem; font-weight: 700; color: #2d3748; }
+  .stat-label  { font-size: .65rem; color: #718096; text-transform: uppercase; }
+
+  .back-btn {
+    background: none; border: none; color: #3182ce; cursor: pointer;
+    font-size: .82rem; padding: 0; display: flex; align-items: center; gap: 4px;
+  }
+  .back-btn:hover { text-decoration: underline; }
+
+  .no-data { color: #a0aec0; font-size: .82rem; font-style: italic; }
+
+  .location-title { padding: 12px 16px; font-size: 1rem; font-weight: 700; color: #1a365d; border-bottom: 1px solid #e2e8f0; }
+
+  /* Selected marker visual emphasis */
+  .leaflet-marker-icon.selected-marker {
+    filter: drop-shadow(0 0 6px #ffcc00) drop-shadow(0 0 10px #ffcc00);
+    transform: scale(1.12);
+  }
+
+  /* Overlay shared styles */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 2000;
+  }
+  .overlay.visible { display: flex; }
+  .overlay-card {
+    background: rgba(255,255,255,0.98); width: min(680px, 92vw);
+    max-height: 90vh; overflow-y: auto;
+    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+  .overlay-title { font-size: 1.1rem; font-weight: 800; color: #1a365d; }
+  .overlay-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #4a5568; }
+  .overlay-body { padding: 14px 16px; color: #2d3748; font-size: .95rem; line-height: 1.55; }
+  .overlay-body ul { margin-left: 6px; margin-top: 6px; list-style: none; }
+  .overlay-body li { margin: 10px 0; display: flex; align-items: center; gap: 10px; }
+  .overlay-body li svg { flex-shrink: 0; }
+  .overlay-body h3 { font-size: .95rem; color: #1a365d; margin: 16px 0 6px; }
+  .overlay-body h3:first-child { margin-top: 0; }
+  .overlay-body p { margin: 6px 0; }
+  .source-list { margin-top: 6px; }
+  .source-list li { font-size: .88rem; align-items: flex-start; }
+  .source-tag { display: inline-block; background: #e2e8f0; color: #4a5568; font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🏊 Can I Swim Here?</h1>
+  <form id="search-form" onsubmit="searchLocation(event)">
+    <input id="search-input" type="text" placeholder="Search a location…" autocomplete="off">
+    <button id="search-btn" type="submit">🔍</button>
+  </form>
+  <span class="spacer"></span>
+  <a href="#" class="nav-link" onclick="openOverlay('help-overlay',event)">How To Use</a>
+  <a href="#" class="nav-link" onclick="openOverlay('about-overlay',event)">About</a>
+  <a href="/explorer" class="nav-link">Data Explorer</a>
+</div>
+
+<div id="map"></div>
+
+<!-- How To Use overlay -->
+<div id="help-overlay" class="overlay" onclick="overlayBgClick(event)">
+  <div class="overlay-card" onclick="event.stopPropagation()">
+    <div class="overlay-header">
+      <div class="overlay-title">How To Use</div>
+      <button class="overlay-close" onclick="closeOverlay('help-overlay')">&times;</button>
+    </div>
+    <div class="overlay-body">
+      <p>Search for a location using the bar above, or click anywhere on the map to search nearby. Click any map icon to see detailed water quality for that spot.</p>
+      <h3>Map Icons</h3>
+      <ul>
+        <li>
+          <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#3182ce" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">🏖</text></svg>
+          <span><strong>Designated Bathing Water</strong> — Officially monitored. Includes daily seasonal forecasts where available.</span>
+        </li>
+        <li>
+          <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#38a169" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">🏊</text></svg>
+          <span><strong>Swim / Recreation Spot</strong> — Popular swimming locations. Unofficial sites are marked accordingly.</span>
+        </li>
+      <li>
+          <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#e53e3e" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">⚠</text></svg>
+          <span><strong>Storm Overflow</strong> — Combined sewer overflows. Shows <strong>live discharge status</strong> (near-real-time) and 2024 annual spill counts.</span>
+        </li>
+        <li>
+          <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#805ad5" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">💧</text></svg>
+          <span><strong>Water Quality Sampling Point</strong> — EA WIMS lab results for bacteria, nutrients, etc.</span>
+        </li>
+        <li>
+          <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#dd6b20" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">📊</text></svg>
+          <span><strong>EA Monitoring Station</strong> — River level, flow, and rainfall gauges.</span>
+        </li>
+      </ul>
+      <h3>Detail View</h3>
+      <p>Click any icon or result row to open the detail panel. Water Quality appears first, followed by <strong>Live Overflow Status</strong> (showing if nearby overflows are currently discharging), overflow history, recent rainfall, and bathing water status. A gold-highlighted icon on the map shows which location is selected.</p>
+    </div>
+  </div>
+</div>
+
+<!-- About overlay -->
+<div id="about-overlay" class="overlay" onclick="overlayBgClick(event)">
+  <div class="overlay-card" onclick="event.stopPropagation()">
+    <div class="overlay-header">
+      <div class="overlay-title">About Can I Swim Here?</div>
+      <button class="overlay-close" onclick="closeOverlay('about-overlay')">&times;</button>
+    </div>
+    <div class="overlay-body">
+      <p><strong>Can I Swim Here?</strong> helps you make informed decisions about wild swimming and water recreation across England, Wales and Scotland. It combines multiple official data sources into a single, easy-to-read traffic-light verdict for any location.</p>
+
+      <h3>How Verdicts Work</h3>
+      <p>Each location receives a <strong style="color:#38a169">Green</strong>, <strong style="color:#d69e2e">Amber</strong>, or <strong style="color:#e53e3e">Red</strong> verdict based on the latest available water quality readings, nearby storm overflow activity, recent rainfall, and official bathing water assessments. When data is old or unavailable, the verdict is downgraded and a warning is shown — we never present stale data as if it were current.</p>
+
+      <h3>Data Sources</h3>
+      <p>All data comes from official, publicly available sources across England, Wales and Scotland:</p>
+      <ul class="source-list">
+        <li><span class="source-tag">WIMS</span> <span>Environment Agency Water Information Management System — laboratory-tested water quality samples including E. coli and Enterococci levels (England).</span></li>
+        <li><span class="source-tag">EDM</span> <span>Event Duration Monitoring — 2024 annual return with storm overflow spill counts and durations for England and Wales (Environment Agency / Natural Resources Wales).</span></li>
+        <li><span class="source-tag">NSOH</span> <span>National Storm Overflow Hub — near-real-time discharge status from all nine English water companies and Scottish Water. Shows whether overflows are actively discharging right now. Note: D&#x175;r Cymru Welsh Water does not publish its live feed through a public data service, so real-time status is not available for Welsh overflows.</span></li>
+        <li><span class="source-tag">SEPA</span> <span>Scottish Environment Protection Agency — bathing water classifications for Scotland.</span></li>
+        <li><span class="source-tag">NRW</span> <span>Natural Resources Wales — Welsh bathing water sites and compliance classifications.</span></li>
+        <li><span class="source-tag">EA Flood</span> <span>Environment Agency Flood Monitoring — real-time rainfall and river level data from gauge stations across England.</span></li>
+        <li><span class="source-tag">BWD</span> <span>Bathing Water Directive — official classifications, daily risk predictions, and seasonal assessments for designated bathing waters.</span></li>
+        <li><span class="source-tag">Swim Spots</span> <span>Recreation and swimming locations sourced from open datasets and community contributions.</span></li>
+      </ul>
+
+      <h3>Limitations</h3>
+      <p>This tool is for <strong>informational purposes only</strong> and does not replace official health or safety advice. Water quality lab samples are taken periodically (often only during bathing season, May–September) and may not reflect current conditions. Real-time overflow monitoring and rainfall data help fill gaps, but local conditions can change rapidly. Always use your own judgement and check for local signage before entering the water.</p>
+      <p><strong>Wales live overflow gap:</strong> D&#x175;r Cymru Welsh Water operates a near-real-time storm overflow map on their corporate website, but unlike every other water company the underlying data is served through a proprietary, non-public system. We cannot integrate their live discharge status until they publish an open data feed. Annual spill data for Welsh overflows is still included from the 2024 EDM return.</p>
+      <p><strong>Scotland overflow data:</strong> Scottish Water publishes monitored overflow locations with live status, but does not yet provide EDM-style annual spill counts through an open dataset. Scottish overflow records show locations and live status only.</p>
+
+      <h3>Open Data</h3>
+      <p>This project is built on open government data from multiple UK regulators and water companies. Contains Environment Agency information &copy; Environment Agency and database right. Includes data from Natural Resources Wales and the Scottish Environment Protection Agency. Uses Ordnance Survey and OpenStreetMap data where applicable.</p>
+
+      <h3>Support This Project</h3>
+      <p>Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
+      <p style="margin-top:10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
+      <p style="margin-top:12px;font-size:.88rem;color:#718096">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
+    </div>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="panel-header">
+    <h2 id="panel-title">Results</h2>
+    <button id="panel-close" onclick="closePanel()">&times;</button>
+  </div>
+  <div id="panel-body"></div>
+</div>
+
+<div id="hint" class="hint">Click anywhere on the map to check water quality</div>
+<div id="loading" class="loading">Searching nearby…</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API = '/api';
+const RADIUS = 5000;
+
+// ── Map setup ────────────────────────────────────────────────
+const map = L.map('map').setView([52.5, -1.5], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+// Layer groups
+const markers = L.layerGroup().addTo(map);
+let searchCircle = null;
+let clickMarker = null;
+let selectedMarker = null;
+const markerIndex = new Map();
+let currentSelectionTitle = null;
+let currentSelectionCategory = null;
+
+// ── Icons ────────────────────────────────────────────────────
+function svgIcon(color, symbol) {
+  return L.divIcon({
+    className: '',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
+    html: `<svg width="28" height="28" viewBox="0 0 28 28">
+      <circle cx="14" cy="14" r="12" fill="${color}" stroke="#fff" stroke-width="2"/>
+      <text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">${symbol}</text>
+    </svg>`,
+  });
+}
+
+const ICONS = {
+  bathing:    svgIcon('#3182ce', '🏖'),
+  recreation: svgIcon('#38a169', '🏊'),
+  overflow:   svgIcon('#e53e3e', '⚠'),
+  sampling:   svgIcon('#805ad5', '💧'),
+  station:    svgIcon('#dd6b20', '📊'),
+};
+
+function svgIconSelected(color, symbol) {
+  return L.divIcon({
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    html: `<svg width="32" height="32" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="14" fill="${color}" stroke="#ffcc00" stroke-width="3"/>
+      <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">${symbol}</text>
+    </svg>`
+  });
+}
+
+const ICONS_SELECTED = {
+  bathing:    svgIconSelected('#3182ce', '🏖'),
+  recreation: svgIconSelected('#38a169', '🏊'),
+  overflow:   svgIconSelected('#e53e3e', '⚠'),
+  sampling:   svgIconSelected('#805ad5', '💧'),
+  station:    svgIconSelected('#dd6b20', '📊'),
+};
+
+// ── Map click handler ────────────────────────────────────────
+map.on('click', async (e) => {
+  const { lat, lng } = e.latlng;
+  document.getElementById('hint').classList.add('hidden');
+  document.getElementById('loading').classList.add('visible');
+
+  // Clear previous
+  markers.clearLayers();
+  if (searchCircle) map.removeLayer(searchCircle);
+  if (clickMarker) map.removeLayer(clickMarker);
+
+  // Add click marker + radius circle
+  clickMarker = L.circleMarker([lat, lng], {
+    radius: 6, color: '#1a365d', fillColor: '#1a365d',
+    fillOpacity: 1, weight: 2,
+  }).addTo(map);
+
+  searchCircle = L.circle([lat, lng], {
+    radius: RADIUS, color: '#1a365d', fillColor: '#1a365d',
+    fillOpacity: 0.05, weight: 1, dashArray: '5,5',
+  }).addTo(map);
+
+  try {
+    const resp = await fetch(
+      `${API}/nearby?lat=${lat}&lon=${lng}&radius=${RADIUS}`
+    );
+    const data = await resp.json();
+    showResults(data, lat, lng);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to fetch data. Is the API server running?');
+  } finally {
+    document.getElementById('loading').classList.remove('visible');
+  }
+});
+
+// ── Render results ───────────────────────────────────────────
+function showResults(data, lat, lng) {
+  // Save state for back navigation
+  lastNearbyData = data;
+  lastNearbyLat = lat;
+  lastNearbyLng = lng;
+
+  const panel = document.getElementById('panel');
+  const body = document.getElementById('panel-body');
+  const title = document.getElementById('panel-title');
+  title.textContent = 'Results';
+  body.innerHTML = '';
+
+  const sections = [
+    {
+      key: 'bathing_waters', label: 'Designated Bathing Waters',
+      icon: ICONS.bathing,
+      render: (d) => {
+        const risk = d.risk_level;
+        const badge = risk
+          ? `<span class="badge ${riskBadge(risk)}">${risk}</span>`
+          : '<span class="badge badge-grey">No data</span>';
+        return `<div class="item-name">${d.name} ${badge}</div>
+                <div class="item-detail">EU BWD ID: ${d.eubwid || '—'}</div>`;
+      },
+    },
+    {
+      key: 'recreation_sites', label: 'Swim / Recreation Spots',
+      icon: ICONS.recreation,
+      render: (d) => {
+        const badge = d.swimming
+          ? '<span class="badge badge-blue">Swimming</span>'
+          : '';
+        const designated = d.near_designated_bathing
+          ? '<span class="badge badge-green">Designated</span>'
+          : '<span class="badge badge-amber">Unofficial</span>';
+        const firstType = (d.recreation_types && d.recreation_types.split(';')[0]) || 'Recreation site';
+        return `<div class="item-name">${firstType} ${badge}${designated}</div>
+                <div class="item-detail">${d.num_data_sources} data source${d.num_data_sources !== 1 ? 's' : ''}</div>`;
+      },
+    },
+    {
+      key: 'overflows', label: 'Storm Overflows',
+      icon: ICONS.overflow,
+      render: (d) => {
+        const spills = d.spills_2024 != null ? d.spills_2024 : '—';
+        const badge = d.spills_2024 > 20
+          ? '<span class="badge badge-red">High spills</span>'
+          : d.spills_2024 > 0
+          ? '<span class="badge badge-amber">Spills recorded</span>'
+          : '';
+        return `<div class="item-name">${d.site_name || d.unique_id} ${badge}</div>
+                <div class="item-detail">${d.water_company} · ${spills} spills (2024) · ${d.receiving_water || ''}</div>`;
+      },
+    },
+    {
+      key: 'sampling_points', label: 'Water Quality Monitoring',
+      icon: ICONS.sampling,
+      render: (d) => {
+        const st = d.status === 'OPEN'
+          ? '<span class="badge badge-green">Active</span>'
+          : '<span class="badge badge-grey">Closed</span>';
+        return `<div class="item-name">${d.name || d.notation} ${st}</div>
+                <div class="item-detail">${d.type || ''}</div>`;
+      },
+    },
+    {
+      key: 'stations', label: 'EA Monitoring Stations',
+      icon: ICONS.station,
+      render: (d) => {
+        return `<div class="item-name">${d.name}</div>
+                <div class="item-detail">${d.river || ''}</div>`;
+      },
+    },
+  ];
+
+  // Default collapsed sections per requirements
+  const collapsedByDefault = {
+    overflows: true,
+    stations: true,
+    sampling_points: true,
+  };
+
+  for (const sec of sections) {
+    const items = data[sec.key] || [];
+    if (items.length === 0) continue;
+
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'section';
+    const isCollapsed = !!collapsedByDefault[sec.key];
+    if (isCollapsed) sectionEl.classList.add('collapsed');
+
+    sectionEl.innerHTML = `
+      <div class="section-title" data-key="${sec.key}">
+        <div class="left"><span class="chev">${isCollapsed ? '▸' : '▾'}</span>${sec.label}</div>
+        <span class="count">${items.length}</span>
+      </div>
+      <div class="section-items">
+        ${items.map((d) => `
+          <div class="item" data-lat="${d.lat}" data-lon="${d.lon}">
+            ${sec.render(d)}
+            <span class="item-distance">${formatDist(d.distance_m)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    body.appendChild(sectionEl);
+
+    // Toggle collapse on header click
+    const header = sectionEl.querySelector('.section-title');
+    header.addEventListener('click', () => {
+      sectionEl.classList.toggle('collapsed');
+      const chev = header.querySelector('.chev');
+      if (chev) chev.textContent = sectionEl.classList.contains('collapsed') ? '▸' : '▾';
+    });
+
+    // Add map markers — clicking any marker opens detail view
+    for (const d of items) {
+      if (d.lat && d.lon) {
+        const m = L.marker([d.lat, d.lon], { icon: sec.icon }).addTo(markers);
+        m.defaultIcon = sec.icon;
+        m._secKey = sec.key;
+        const key = `${d.lat},${d.lon}`;
+        markerIndex.set(key, m);
+        m.on('click', () => {
+          highlightMarker(m);
+          currentSelectionTitle = itemLabel(sec.key, d);
+          currentSelectionCategory = itemCategory(sec.key, d);
+          fetchDetail(d.lat, d.lon, currentSelectionTitle, currentSelectionCategory);
+        });
+        m.bindTooltip('Click for detail', { direction: 'top' });
+      }
+    }
+  }
+
+  // Click on any item in panel → open detail
+  body.querySelectorAll('.item[data-lat]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const lat = parseFloat(el.dataset.lat);
+      const lon = parseFloat(el.dataset.lon);
+      const m = markerIndex.get(`${lat},${lon}`);
+      if (m) highlightMarker(m);
+      currentSelectionTitle = deriveItemLabelFromElement(el);
+      currentSelectionCategory = deriveItemCategoryFromElement(el);
+      if (lat && lon) fetchDetail(lat, lon, currentSelectionTitle, currentSelectionCategory);
+    });
+  });
+
+  function highlightMarker(m) {
+    if (selectedMarker) {
+      selectedMarker.setIcon(selectedMarker.defaultIcon);
+      if (selectedMarker._icon) selectedMarker._icon.classList.remove('selected-marker');
+      selectedMarker.setZIndexOffset(0);
+    }
+    const sel = ICONS_SELECTED[m._secKey] || m.defaultIcon;
+    m.setIcon(sel);
+    if (m._icon) m._icon.classList.add('selected-marker');
+    m.setZIndexOffset(1000);
+    selectedMarker = m;
+  }
+
+  function itemLabel(key, d) {
+    if (key === 'bathing_waters') return d.name || 'Bathing water';
+    if (key === 'recreation_sites') return d.name || (d.recreation_types?.split(';')[0] || 'Recreation site');
+    if (key === 'overflows') return d.site_name || d.name || d.unique_id || 'Storm overflow';
+    if (key === 'sampling_points') return d.name || d.notation || 'Monitoring point';
+    if (key === 'stations') return d.name || 'EA Monitoring Station';
+    return 'Location';
+  }
+
+  function deriveItemLabelFromElement(el) {
+    const nameEl = el.querySelector('.item-name');
+    if (nameEl) return nameEl.textContent.replace(/\s+\d+\s*$/,'').trim();
+    return 'Location';
+  }
+
+  function itemCategory(key, d) {
+    if (key === 'bathing_waters') return 'Designated Bathing Waters';
+    if (key === 'recreation_sites') return d.near_designated_bathing ? 'Designated Bathing Waters' : 'Unofficial Swim / Recreation Spot';
+    if (key === 'overflows') return 'Storm Overflow';
+    if (key === 'sampling_points') return 'Water Quality Monitoring';
+    if (key === 'stations') return 'EA Monitoring Station';
+    return '';
+  }
+
+  function deriveItemCategoryFromElement(el) {
+    const parentSection = el.closest('.section');
+    const header = parentSection ? parentSection.querySelector('.section-title .left') : null;
+    const txt = header ? header.textContent : '';
+    if (txt.includes('Designated Bathing Waters')) return 'Designated Bathing Waters';
+    if (txt.includes('Swim / Recreation')) return 'Unofficial Swim / Recreation Spot';
+    if (txt.includes('Storm Overflows')) return 'Storm Overflow';
+    if (txt.includes('Water Quality Monitoring')) return 'Water Quality Monitoring';
+    if (txt.includes('EA Monitoring')) return 'EA Monitoring Station';
+    return '';
+  }
+
+  panel.classList.add('visible');
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('visible');
+}
+
+function formatDist(m) {
+  if (m == null) return '';
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
+}
+
+function riskBadge(level) {
+  if (!level) return 'badge-grey';
+  const l = level.toLowerCase();
+  if (l.includes('low') || l.includes('good')) return 'badge-green';
+  if (l.includes('moderate') || l.includes('sufficient')) return 'badge-amber';
+  if (l.includes('high') || l.includes('poor')) return 'badge-red';
+  return 'badge-grey';
+}
+
+// ── Detail view ──────────────────────────────────────────────
+let lastNearbyData = null;
+let lastNearbyLat = null;
+let lastNearbyLng = null;
+
+async function fetchDetail(lat, lon, label, category) {
+  // Show loading state inside the panel immediately
+  var panel = document.getElementById('panel');
+  var body = document.getElementById('panel-body');
+  var title = document.getElementById('panel-title');
+  title.innerHTML = '<button class="back-btn" onclick="goBack()">← Back to results</button>';
+  body.innerHTML = '<div style="padding:30px 16px;text-align:center;color:#718096">' +
+    '<div style="font-size:1.5rem;margin-bottom:8px">⏳</div>' +
+    '<div style="font-size:.9rem;font-weight:600">Loading details…</div>' +
+    '<div style="font-size:.75rem;margin-top:4px">Fetching live data from multiple sources</div>' +
+    '</div>';
+  panel.classList.add('visible');
+  try {
+    const resp = await fetch(`${API}/site/detail?lat=${lat}&lon=${lon}`);
+    const data = await resp.json();
+    if (label) currentSelectionTitle = label; else currentSelectionTitle = null;
+    if (category) currentSelectionCategory = category; else currentSelectionCategory = null;
+    showDetail(data);
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = '<div style="padding:20px 16px;color:#e53e3e;font-size:.85rem">' +
+      '❌ Failed to load details. Is the API server running?' +
+      '</div>';
+  }
+}
+
+function showDetail(data) {
+  const panel = document.getElementById('panel');
+  const body = document.getElementById('panel-body');
+  const title = document.getElementById('panel-title');
+  body.innerHTML = '';
+
+  title.innerHTML = '<button class="back-btn" onclick="goBack()">← Back to results</button>';
+
+  // ── Location title ───────────────────────────────────────
+  const bwName = (data.bathing_water && data.bathing_water.name) || null;
+  const spName = (data.nearest_sampling_point && data.nearest_sampling_point.name) || null;
+  const baseName = currentSelectionTitle || bwName || spName || `${data.location.lat.toFixed(5)}, ${data.location.lon.toFixed(5)}`;
+  const cat = currentSelectionCategory || (bwName ? 'Designated Bathing Waters' : (spName ? 'Water Quality Monitoring' : ''));
+  const headerLine = cat ? `${titleCase(baseName)} - ${titleCase(cat)}` : titleCase(baseName);
+  body.innerHTML += `<div class="location-title">${headerLine}</div>`;
+
+  // ── Verdict banner ───────────────────────────────────────
+  const v = data.verdict || {};
+  const levelClass = `verdict-${v.level || 'amber'}`;
+  const levelIcon = v.level === 'green' ? '✅' : v.level === 'red' ? '🚫' : '⚠️';
+  const levelLabel = v.level === 'green' ? 'Looks Good'
+    : v.level === 'red' ? 'Caution Advised' : 'Some Concerns';
+  body.innerHTML += `
+    <div class="verdict-banner ${levelClass}">
+      <span class="verdict-icon">${levelIcon}</span>
+      <div>
+        <div>${levelLabel}</div>
+        <div class="verdict-text">${v.summary || ''}</div>
+      </div>
+    </div>
+  `;
+
+  // ── Water quality first ──────────────────────────────────
+  const sp = data.nearest_sampling_point;
+  const readings = data.water_quality?.readings || [];
+  const freshness = data.water_quality?.freshness || {};
+  const staleWarning = freshness.status === 'very_stale'
+    ? `<div style="background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16">⚠️ Data is ${Math.round(freshness.age_days / 365)} years old — may not reflect current conditions.</div>`
+    : freshness.status === 'stale'
+    ? `<div style="background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16">⚠️ Data is ~${Math.round(freshness.age_days / 30)} months old.</div>`
+    : '';
+  body.innerHTML += `
+    <div class="detail-section">
+      <h3>Water Quality${sp ? ` <span style="font-weight:400;text-transform:none;letter-spacing:0">from ${sp.name || sp.notation} (${formatDist(sp.distance_m)})</span>` : ''}</h3>
+      ${staleWarning}
+      ${readings.length === 0
+        ? '<div class="no-data">No recent water quality readings available nearby.</div>'
+        : readings.map(r => {
+            const assess = assessReading(r.determinand, r.value);
+            const age = readingAge(r.date);
+            return `
+              <div class="reading-row">
+                <div>
+                  <span class="reading-label">${r.determinand}</span>
+                  <span class="reading-date">${r.date}${age ? ` (${age})` : ''}</span>
+                </div>
+                <div>
+                  <span class="reading-value">${r.display_value || r.value} ${r.unit}</span>
+                  ${assess ? `<span class="reading-assessment badge ${assess.badge}">${assess.label}</span>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')
+      }
+    </div>
+  `;
+
+  // ── Live Overflow Status (NSOH near-real-time) ──────────
+  var liveOvs = data.live_overflows || [];
+  if (liveOvs.length > 0) {
+    var activeCount = liveOvs.filter(function(o){ return o.status_code === 1; }).length;
+    var statusTag = activeCount > 0
+      ? '<span class="live-tag live-tag-red"><span class="pulse-dot pulse-dot-red"></span> ' + activeCount + ' discharging now</span>'
+      : '<span class="live-tag live-tag-green"><span class="pulse-dot pulse-dot-green"></span> None discharging</span>';
+    body.innerHTML += '<div class="detail-section"><h3>Live Overflow Status <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.7rem;color:#a0aec0">near-real-time</span></h3>' + statusTag;
+    body.innerHTML += liveOvs.slice(0, 5).map(function(o){
+      var cardClass = o.status_code === 1 ? 'live-card-active' : (o.last_spill_hours_ago != null && o.last_spill_hours_ago <= 24 ? 'live-card-recent' : 'live-card-ok');
+      var statusBit = o.status_code === 1
+        ? '<span class="live-tag live-tag-red" style="font-size:.6rem"><span class="pulse-dot pulse-dot-red"></span> Discharging</span>'
+        : o.status_code === -1
+        ? '<span class="live-tag live-tag-grey" style="font-size:.6rem">Offline</span>'
+        : '<span class="live-tag live-tag-green" style="font-size:.6rem">Stopped</span>';
+      var lastSpill = '';
+      if (o.last_spill_hours_ago != null) {
+        if (o.last_spill_hours_ago < 1) lastSpill = 'Last spill: <1 hr ago';
+        else if (o.last_spill_hours_ago < 24) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago) + ' hrs ago';
+        else if (o.last_spill_hours_ago < 168) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 24) + ' days ago';
+        else lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 168) + ' weeks ago';
+      }
+      return '<div class="live-card ' + cardClass + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-weight:600">' + (o.receiving_water || o.id || 'Overflow') + '</span>' +
+          statusBit +
+        '</div>' +
+        '<div style="font-size:.72rem;color:#718096;margin-top:2px">' +
+          (o.company || '') + ' · ' + formatDist(o.distance_m) + ' away' +
+          (lastSpill ? ' · ' + lastSpill : '') +
+        '</div></div>';
+    }).join('');
+    body.innerHTML += '</div>';
+  }
+
+  // ── Overflow Threat (2024 Annual Return) ─────────────────
+  var ov = (data.overflow_threat && data.overflow_threat.summary) || {};
+  body.innerHTML += `
+    <div class="detail-section">
+      <h3>Overflow History <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.7rem;color:#a0aec0">2024 annual return</span></h3>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-number">${ov.within_1km || 0}</div>
+          <div class="stat-label">Within 1 km</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">${ov.within_2km || 0}</div>
+          <div class="stat-label">Within 2 km</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">${ov.total_spills_2km || 0}</div>
+          <div class="stat-label">Spills (2024)</div>
+        </div>
+      </div>
+      ${(data.overflow_threat && data.overflow_threat.worst_overflows || []).slice(0, 3).map(function(o){
+        return '<div class="overflow-card" style="margin-top:8px">' +
+          '<div class="oc-name">' + (o.name || 'Unnamed overflow') + '</div>' +
+          '<div class="oc-detail">' +
+            (o.water_company || '') + ' \u00b7 ' + (o.spills_2024 != null ? o.spills_2024 + ' spills' : 'No data') +
+            ' \u00b7 ' + formatDist(o.distance_m) + ' away' +
+            (o.receiving_water ? ' \u00b7 into ' + o.receiving_water : '') +
+          '</div></div>';
+      }).join('')}
+    </div>
+  `;
+
+
+  // ── Recent Rainfall ─────────────────────────────────────
+  if (data.rainfall) {
+    const rf = data.rainfall;
+    body.innerHTML += `
+      <div class="detail-section">
+        <h3>Recent Rainfall</h3>
+        <div class="reading-row">
+          <span class="reading-label">Last 6 hours</span>
+          <span class="reading-value">${fmtNum(rf.last_6h_mm)} mm</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">Last 24 hours</span>
+          <span class="reading-value">${fmtNum(rf.last_24h_mm)} mm</span>
+        </div>
+        <div class="reading-row">
+          <span class="reading-label">Gauges used</span>
+          <span class="reading-value">${rf.station_count || 0}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Bathing water status ─────────────────────────────────
+  if (data.bathing_water) {
+    const bw = data.bathing_water;
+    const ba = data.bathing_assessment;
+    body.innerHTML += `
+      <div class="detail-section">
+        <h3>Designated Bathing Water</h3>
+        <div class="reading-row">
+          <span class="reading-label">${bw.name}</span>
+          <span class="reading-value">${formatDist(bw.distance_m)}</span>
+        </div>
+        ${ba ? `
+          <div class="reading-row">
+            <span class="reading-label">Classification</span>
+            <span class="reading-value">${ba.classification || '—'}</span>
+          </div>
+          <div class="reading-row">
+            <span class="reading-label">Risk level</span>
+            <span class="reading-value">${ba.risk_level || '—'}</span>
+          </div>
+        ` : '<div class="no-data">No current bathing season assessment available.</div>'}
+      </div>
+    `;
+  }
+
+  panel.classList.add('visible');
+}
+
+function goBack() {
+  document.getElementById('panel-title').textContent = 'Results';
+  if (lastNearbyData) {
+    showResults(lastNearbyData, lastNearbyLat, lastNearbyLng);
+  }
+}
+
+function assessReading(determinand, value) {
+  const thresholds = {
+    'E. coli':     { excellent: 250, good: 500, sufficient: 900 },
+    'Enterococci': { excellent: 100, good: 200, sufficient: 330 },
+  };
+  const t = thresholds[determinand];
+  if (!t) return null;
+  if (value <= t.excellent) return { label: 'Excellent', badge: 'badge-green' };
+  if (value <= t.good)      return { label: 'Good', badge: 'badge-green' };
+  if (value <= t.sufficient) return { label: 'Sufficient', badge: 'badge-amber' };
+  return { label: 'Poor', badge: 'badge-red' };
+}
+
+function readingAge(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const days = Math.floor((Date.now() - d) / 86400000);
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.round(days / 30)}mo ago`;
+  return `${(days / 365).toFixed(1)}yr ago`;
+}
+
+// Hide hint after 8 seconds
+setTimeout(function(){ document.getElementById('hint').classList.add('hidden'); }, 8000);
+
+// ── Overlays ─────────────────────────────────────────────────
+function openOverlay(id, e){ if(e) e.preventDefault(); document.getElementById(id).classList.add('visible'); }
+function closeOverlay(id){ document.getElementById(id).classList.remove('visible'); }
+function overlayBgClick(e){
+  if(e.target.classList.contains('overlay')) e.target.classList.remove('visible');
+}
+
+// ── Location search (Nominatim) ──────────────────────────────
+function searchLocation(e) {
+  e.preventDefault();
+  var q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  var loading = document.getElementById('loading');
+  loading.textContent = 'Searching for ' + q + '…';
+  loading.classList.add('visible');
+
+  fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=gb&limit=1&q=' + encodeURIComponent(q))
+    .then(function(resp){ return resp.json(); })
+    .then(function(results){
+      if (!results || results.length === 0) {
+        loading.classList.remove('visible');
+        alert('Location not found. Try a town, city, river or beach name.');
+        return;
+      }
+      var r = results[0];
+      var lat = parseFloat(r.lat);
+      var lon = parseFloat(r.lon);
+      map.flyTo([lat, lon], 13, { duration: 1.2 });
+
+      // Trigger the same flow as a map click
+      markers.clearLayers();
+      if (searchCircle) map.removeLayer(searchCircle);
+      if (clickMarker) map.removeLayer(clickMarker);
+
+      clickMarker = L.circleMarker([lat, lon], {
+        radius: 6, color: '#1a365d', fillColor: '#1a365d',
+        fillOpacity: 1, weight: 2,
+      }).addTo(map);
+
+      searchCircle = L.circle([lat, lon], {
+        radius: RADIUS, color: '#1a365d', fillColor: '#1a365d',
+        fillOpacity: 0.05, weight: 1, dashArray: '5,5',
+      }).addTo(map);
+
+      loading.textContent = 'Searching nearby…';
+      return fetch(API + '/nearby?lat=' + lat + '&lon=' + lon + '&radius=' + RADIUS)
+        .then(function(resp){ return resp.json(); })
+        .then(function(data){ showResults(data, lat, lon); });
+    })
+    .catch(function(err){
+      console.error(err);
+      alert('Search failed. Please try again.');
+    })
+    .finally(function(){
+      loading.classList.remove('visible');
+      loading.textContent = 'Searching nearby…';
+    });
+}
+
+function fmtNum(x){ return (typeof x === 'number' && isFinite(x)) ? x.toFixed(1) : '—'; }
+function titleCase(s) {
+  if (!s) return '';
+  return s.replace(/[-_]/g, ' ').toLowerCase().replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+}
+</script>
+</body>
+</html>
