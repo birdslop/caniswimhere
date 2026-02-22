@@ -56,9 +56,9 @@ def should_post_now() -> bool:
 
 # ── Stats queries ──────────────────────────────────────────────
 def get_stats() -> dict:
-    """Query nsoh_events for currently active and 24h counts."""
+    """Query nsoh_events for currently active and 12h counts."""
     now_utc = datetime.now(timezone.utc)
-    twenty_four_hours_ago = now_utc - timedelta(hours=24)
+    twelve_hours_ago = now_utc - timedelta(hours=12)
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
@@ -70,28 +70,16 @@ def get_stats() -> dict:
             """)
             currently = cur.fetchone()[0]
 
-            # Events started in the last 24 hours
+            # Events started in the last 12 hours
             cur.execute(
                 "SELECT count(*) FROM nsoh_events WHERE event_start >= %s",
-                (twenty_four_hours_ago,),
+                (twelve_hours_ago,),
             )
-            last_24h = cur.fetchone()[0]
-
-            # Total monitored overflow points (from latest snapshot)
-            cur.execute("""
-                SELECT COALESCE(SUM(total_count), 0)
-                FROM nsoh_snapshots
-                WHERE polled_at >= now() - interval '2 hours'
-                  AND polled_at = (
-                    SELECT MAX(polled_at) FROM nsoh_snapshots
-                  )
-            """)
-            total_monitored = cur.fetchone()[0]
+            last_12h = cur.fetchone()[0]
 
     return {
         "currently_discharging": currently,
-        "last_24h": last_24h,
-        "total_monitored": total_monitored,
+        "last_12h": last_12h,
     }
 
 
@@ -99,15 +87,13 @@ def get_stats() -> dict:
 def build_message(stats: dict) -> str:
     """Compose the post text from stats."""
     active = f"{stats['currently_discharging']:,}"
-    n24 = f"{stats['last_24h']:,}"
-    monitored = f"{stats['total_monitored']:,}"
+    n12 = f"{stats['last_12h']:,}"
 
     lines = [
-        f"\U0001f6a8 Right now, {active} storm overflows are discharging "
-        f"sewage across England & Scotland.",
+        f"\U0001f6a8 In the last 12 hours, we\u2019ve recorded {n12} sewage "
+        f"discharge events across England & Scotland.",
         "",
-        f"In the last 24 hours, {n24} discharge events have been "
-        f"recorded across {monitored} monitored overflows.",
+        f"Right now, {active} storm overflows are actively discharging.",
         "",
         f"\U0001f30a {SITE_URL}",
         "",
@@ -195,7 +181,7 @@ def main():
 
     stats = get_stats()
     print(f"  Stats: active={stats['currently_discharging']}, "
-          f"24h={stats['last_24h']}, monitored={stats['total_monitored']}")
+          f"12h={stats['last_12h']}")
 
     message = build_message(stats)
     print(f"  Message ({len(message)} chars):")
