@@ -227,6 +227,15 @@
   .source-list { margin-top: 6px; }
   .source-list li { font-size: .88rem; align-items: flex-start; }
   .source-tag { display: inline-block; background: #e2e8f0; color: #4a5568; font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
+
+  @media (max-width: 640px) {
+    #header { flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
+    #header h1 { font-size: 1.1rem; }
+    #search-form { order: 3; max-width: 100%; flex-basis: 100%; }
+    #header .spacer { display: none; }
+    #header a.nav-link { font-size: .8rem; }
+    #panel { width: calc(100vw - 20px); right: 10px; top: 110px; }
+  }
 </style>
 </head>
 <body>
