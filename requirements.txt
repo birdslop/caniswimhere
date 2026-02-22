@@ -16,3 +16,5 @@ uvicorn==0.41.0
 psycopg[binary]==3.2.9
 psycopg-pool==3.3.0
 httpx==0.28.1
+atproto>=0.0.55
+tweepy>=4.14.0

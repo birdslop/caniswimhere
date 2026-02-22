@@ -490,3 +490,52 @@ def overflow_detail(unique_id: str):
             ]
 
     return overflow
+
+
+# ── 7. Live overflow summary ─────────────────────────────────
+
+@router.get("/live-summary")
+def live_summary():
+    """Current live discharge counts and recent event statistics from NSOH polling."""
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            # Currently discharging (seen within last 45 min, no end)
+            cur.execute("""
+                SELECT count(*) FROM nsoh_events
+                WHERE event_end IS NULL
+                  AND last_seen_at >= now() - interval '45 minutes'
+            """)
+            currently = cur.fetchone()[0]
+
+            # Last 12 hours
+            cur.execute("""
+                SELECT count(*) FROM nsoh_events
+                WHERE event_start >= now() - interval '12 hours'
+            """)
+            last_12h = cur.fetchone()[0]
+
+            # Month-to-date
+            cur.execute("""
+                SELECT count(*) FROM nsoh_events
+                WHERE event_start >= date_trunc('month', now())
+            """)
+            mtd = cur.fetchone()[0]
+
+            # Year-to-date
+            cur.execute("""
+                SELECT count(*) FROM nsoh_events
+                WHERE event_start >= date_trunc('year', now())
+            """)
+            ytd = cur.fetchone()[0]
+
+            # Last polled
+            cur.execute("SELECT max(polled_at) FROM nsoh_snapshots")
+            last_polled = cur.fetchone()[0]
+
+    return {
+        "currently_discharging": currently,
+        "last_12h": last_12h,
+        "month_to_date": mtd,
+        "year_to_date": ytd,
+        "last_polled": last_polled.isoformat() if last_polled else None,
+    }

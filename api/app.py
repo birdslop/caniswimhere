@@ -222,11 +222,13 @@ def custom_docs():
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   #site-header {
     background: #1a365d; color: #fff;
     padding: 12px 20px; display: flex; align-items: center; gap: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,.15); position: relative; z-index: 1000;
+    flex-wrap: wrap;
   }
   #site-header h1 { font-size: 1.3rem; font-weight: 700; white-space: nowrap; }
   #site-header h1 a { color: #fff; text-decoration: none; }
@@ -237,6 +239,14 @@ def custom_docs():
   }
   #site-header a.nav-link:hover { color: #fff; text-decoration: underline; }
   #site-header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
+  #swagger-ui { overflow-x: hidden; }
+  .swagger-ui .wrapper { max-width: 100vw; overflow-x: hidden; padding: 0 8px; }
+  @media (max-width: 640px) {
+    #site-header { gap: 6px; padding: 10px 12px; }
+    #site-header h1 { width: 100%; font-size: 1.1rem; }
+    #site-header .spacer { display: none; }
+    #site-header a.nav-link { font-size: .8rem; }
+  }
 </style>
 </head>
 <body>
