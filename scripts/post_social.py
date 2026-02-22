@@ -56,33 +56,12 @@ def should_post_now() -> bool:
 
 # ── Stats queries ──────────────────────────────────────────────
 def get_stats() -> dict:
-    """Query nsoh_events for 12h / MTD / YTD counts."""
+    """Query nsoh_events for currently active and 24h counts."""
     now_utc = datetime.now(timezone.utc)
-    twelve_hours_ago = now_utc - timedelta(hours=12)
-    now_uk = datetime.now(UK_TZ)
-    month_start = now_uk.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    year_start = now_uk.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    twenty_four_hours_ago = now_utc - timedelta(hours=24)
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT count(*) FROM nsoh_events WHERE event_start >= %s",
-                (twelve_hours_ago,),
-            )
-            last_12h = cur.fetchone()[0]
-
-            cur.execute(
-                "SELECT count(*) FROM nsoh_events WHERE event_start >= %s",
-                (month_start,),
-            )
-            mtd = cur.fetchone()[0]
-
-            cur.execute(
-                "SELECT count(*) FROM nsoh_events WHERE event_start >= %s",
-                (year_start,),
-            )
-            ytd = cur.fetchone()[0]
-
             # Currently discharging (last seen within 45 min, no event_end)
             cur.execute("""
                 SELECT count(*) FROM nsoh_events
@@ -91,29 +70,44 @@ def get_stats() -> dict:
             """)
             currently = cur.fetchone()[0]
 
+            # Events started in the last 24 hours
+            cur.execute(
+                "SELECT count(*) FROM nsoh_events WHERE event_start >= %s",
+                (twenty_four_hours_ago,),
+            )
+            last_24h = cur.fetchone()[0]
+
+            # Total monitored overflow points (from latest snapshot)
+            cur.execute("""
+                SELECT COALESCE(SUM(total_count), 0)
+                FROM nsoh_snapshots
+                WHERE polled_at >= now() - interval '2 hours'
+                  AND polled_at = (
+                    SELECT MAX(polled_at) FROM nsoh_snapshots
+                  )
+            """)
+            total_monitored = cur.fetchone()[0]
+
     return {
-        "last_12h": last_12h,
-        "month_to_date": mtd,
-        "year_to_date": ytd,
         "currently_discharging": currently,
+        "last_24h": last_24h,
+        "total_monitored": total_monitored,
     }
 
 
 # ── Build post text ────────────────────────────────────────────
 def build_message(stats: dict) -> str:
     """Compose the post text from stats."""
-    n12 = f"{stats['last_12h']:,}"
-    mtd = f"{stats['month_to_date']:,}"
-    ytd = f"{stats['year_to_date']:,}"
-
-    now_uk = datetime.now(UK_TZ)
-    month_name = now_uk.strftime("%B")
+    active = f"{stats['currently_discharging']:,}"
+    n24 = f"{stats['last_24h']:,}"
+    monitored = f"{stats['total_monitored']:,}"
 
     lines = [
-        f"\U0001f6a8 In the last 12 hours, {n12} sewage discharges "
-        f"have been recorded across England & Scotland.",
+        f"\U0001f6a8 Right now, {active} storm overflows are discharging "
+        f"sewage across England & Scotland.",
         "",
-        f"That\u2019s {mtd} so far in {month_name} and {ytd} this year.",
+        f"In the last 24 hours, {n24} discharge events have been "
+        f"recorded across {monitored} monitored overflows.",
         "",
         f"\U0001f30a {SITE_URL}",
         "",
@@ -200,8 +194,8 @@ def main():
     print(f"[{datetime.now(timezone.utc).isoformat()}] Generating social post …")
 
     stats = get_stats()
-    print(f"  Stats: 12h={stats['last_12h']}, MTD={stats['month_to_date']}, "
-          f"YTD={stats['year_to_date']}, active={stats['currently_discharging']}")
+    print(f"  Stats: active={stats['currently_discharging']}, "
+          f"24h={stats['last_24h']}, monitored={stats['total_monitored']}")
 
     message = build_message(stats)
     print(f"  Message ({len(message)} chars):")
