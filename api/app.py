@@ -167,6 +167,9 @@ async def password_gate(request: Request, call_next):
     """If SITE_PASSWORD is set, require HTTP Basic Auth on every request."""
     if not _SITE_PASSWORD:
         return await call_next(request)
+    # Let healthcheck through without auth so Railway deployments succeed
+    if request.url.path == "/api/health":
+        return await call_next(request)
     import base64
     auth = request.headers.get("authorization", "")
     if auth.startswith("Basic "):
