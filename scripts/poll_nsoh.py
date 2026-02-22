@@ -40,6 +40,31 @@ def fetch_json(url: str) -> dict:
         return json.loads(resp.read())
 
 
+def _parse_ts(raw) -> datetime | None:
+    """Parse a timestamp that may be epoch-ms (int/float) or ISO-8601 string."""
+    if raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        if raw <= 0:
+            return None
+        return datetime.fromtimestamp(raw / 1000, tz=timezone.utc)
+    if isinstance(raw, str):
+        try:
+            # Try epoch-ms as string
+            ms = float(raw)
+            if ms <= 0:
+                return None
+            return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+        except ValueError:
+            pass
+        try:
+            # ISO-8601 string
+            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
 def query_discharging(company: str, base_url: str, field_map: dict | None) -> list[dict]:
     """Query a single NSOH endpoint for currently-discharging overflows."""
     fm = field_map or NSOH_DEFAULT_FIELDS
@@ -65,19 +90,23 @@ def query_discharging(company: str, base_url: str, field_map: dict | None) -> li
     for feat in data.get("features", []):
         a = feat.get("attributes", {})
         overflow_id = a.get(fm["id"])
-        event_start_ms = a.get(fm["event_start"])
-        if not overflow_id or not event_start_ms or event_start_ms <= 0:
+        event_start_raw = a.get(fm["event_start"])
+        if not overflow_id or not event_start_raw:
             continue
 
-        event_end_ms = a.get(fm["event_end"])
+        # Parse timestamp — may be epoch-ms (int/float) or ISO string
+        event_start = _parse_ts(event_start_raw)
+        if event_start is None:
+            continue
+
+        event_end_raw = a.get(fm["event_end"])
+        event_end = _parse_ts(event_end_raw)
+
         results.append({
             "overflow_id": str(overflow_id),
             "company": a.get(fm["company"]) or company,
-            "event_start": datetime.fromtimestamp(event_start_ms / 1000, tz=timezone.utc),
-            "event_end": (
-                datetime.fromtimestamp(event_end_ms / 1000, tz=timezone.utc)
-                if event_end_ms and event_end_ms > 0 else None
-            ),
+            "event_start": event_start,
+            "event_end": event_end,
             "receiving_water": a.get(fm["receiving_water"]),
         })
     return results
