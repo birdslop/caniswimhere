@@ -110,8 +110,8 @@ def build_message(stats: dict) -> str:
     month_name = now_uk.strftime("%B")
 
     lines = [
-        f"\U0001f6a8 In the last 12 hours, {n12} sewage discharges from "
-        f"storm overflows have been recorded across England & Scotland.",
+        f"\U0001f6a8 In the last 12 hours, {n12} sewage discharges "
+        f"have been recorded across England & Scotland.",
         "",
         f"That\u2019s {mtd} so far in {month_name} and {ytd} this year.",
         "",
@@ -160,6 +160,15 @@ def post_x(message: str) -> str | None:
         return str(tweet_id)
     except Exception as e:
         print(f"  ✗ X failed: {e}")
+        # Print full error details for debugging
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"    Status: {e.response.status_code}")
+            print(f"    Headers: {dict(e.response.headers)}")
+            print(f"    Body: {e.response.text}")
+        if hasattr(e, 'api_errors'):
+            print(f"    API errors: {e.api_errors}")
+        if hasattr(e, 'api_messages'):
+            print(f"    API messages: {e.api_messages}")
         return None
 
 
