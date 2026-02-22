@@ -13,7 +13,7 @@
   #header {
     background: #1a365d; color: #fff;
     padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.15); z-index: 1000; position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15); z-index: 1000; position: sticky; top: 0;
     flex-wrap: wrap;
   }
   #header h1 { font-size: 1.3rem; font-weight: 700; }
@@ -27,7 +27,7 @@
   /* ── Tabs ─────────────────────────────────────────────────── */
   .tabs {
     display: flex; gap: 0; background: #fff; border-bottom: 2px solid #e2e8f0;
-    padding: 0 20px; overflow-x: auto;
+    padding: 0 20px; overflow-x: auto; position: sticky; top: 52px; z-index: 999;
   }
   .tab {
     padding: 12px 20px; font-size: .85rem; font-weight: 600; color: #718096;
@@ -146,7 +146,7 @@
 
   /* ── Responsive ──────────────────────────────────────────── */
   @media (max-width: 640px) {
-    #header { gap: 6px; }
+    #header { gap: 6px; padding: 10px 12px; }
     #header h1 { width: 100%; font-size: 1.1rem; }
     #header .spacer { display: none; }
     #header a.nav-link { font-size: .8rem; }
@@ -780,6 +780,15 @@ async function populateCompanyDropdown() {
     });
   } catch (e) { /* silent */ }
 }
+
+// ── Sticky tabs offset ────────────────────────────────────────
+function updateTabsOffset() {
+  const hdr = document.getElementById('header');
+  const tabs = document.querySelector('.tabs');
+  if (hdr && tabs) tabs.style.top = hdr.offsetHeight + 'px';
+}
+updateTabsOffset();
+window.addEventListener('resize', updateTabsOffset);
 
 // ── Init ──────────────────────────────────────────────────────
 populateCompanyDropdown();
