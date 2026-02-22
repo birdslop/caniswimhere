@@ -22,6 +22,7 @@
     white-space: nowrap;
   }
   #header a.nav-link:hover { color: #fff; text-decoration: underline; }
+  .nav-links { display: flex; gap: 12px; }
 
   /* Search bar */
   #search-form {
@@ -229,12 +230,13 @@
   .source-tag { display: inline-block; background: #e2e8f0; color: #4a5568; font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
 
   @media (max-width: 640px) {
-    #header { flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
-    #header h1 { font-size: 1.1rem; }
+    #header { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    #header h1 { font-size: 1.25rem; width: 100%; }
     #search-form { order: 3; max-width: 100%; flex-basis: 100%; }
     #header .spacer { display: none; }
-    #header a.nav-link { font-size: .8rem; }
-    #panel { width: calc(100vw - 20px); right: 10px; top: 110px; }
+    .nav-links { display: flex; width: 100%; justify-content: space-between; }
+    #header a.nav-link { font-size: .95rem; padding: 4px 0; }
+    #panel { width: calc(100vw - 20px); right: 10px; top: 130px; }
   }
 </style>
 </head>
@@ -247,9 +249,11 @@
     <button id="search-btn" type="submit">🔍</button>
   </form>
   <span class="spacer"></span>
-  <a href="#" class="nav-link" onclick="openOverlay('help-overlay',event)">How To Use</a>
-  <a href="#" class="nav-link" onclick="openOverlay('about-overlay',event)">About</a>
-  <a href="/explorer" class="nav-link">Data Explorer</a>
+  <div class="nav-links">
+    <a href="#" class="nav-link" onclick="openOverlay('help-overlay',event)">How To Use</a>
+    <a href="#" class="nav-link" onclick="openOverlay('about-overlay',event)">About</a>
+    <a href="/explorer" class="nav-link">Data Explorer</a>
+  </div>
 </div>
 
 <div id="map"></div>

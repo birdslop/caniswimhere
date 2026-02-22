@@ -23,6 +23,7 @@
   }
   #header a.nav-link:hover { color: #fff; text-decoration: underline; }
   #header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
+  .nav-links { display: flex; gap: 12px; }
 
   /* ── Tabs ─────────────────────────────────────────────────── */
   .tabs {
@@ -146,10 +147,11 @@
 
   /* ── Responsive ──────────────────────────────────────────── */
   @media (max-width: 640px) {
-    #header { gap: 6px; padding: 10px 12px; }
-    #header h1 { width: 100%; font-size: 1.1rem; }
+    #header { gap: 8px; padding: 12px 14px; }
+    #header h1 { width: 100%; font-size: 1.25rem; }
     #header .spacer { display: none; }
-    #header a.nav-link { font-size: .8rem; }
+    .nav-links { display: flex; width: 100%; justify-content: space-between; }
+    #header a.nav-link { font-size: .95rem; padding: 4px 0; }
     .stat-cards { grid-template-columns: 1fr 1fr; }
     .filter-bar { flex-direction: column; }
     .detail-grid { grid-template-columns: 1fr; }
@@ -163,9 +165,11 @@
 <div id="header">
   <h1><a href="/" style="color:#fff;text-decoration:none">🏊 Can I Swim Here?</a> <span style="font-weight:400;color:#cbd5e0">— Data Explorer</span></h1>
   <span class="spacer"></span>
-  <a href="/" class="nav-link">Swim Map</a>
-  <a href="/explorer" class="nav-link active">Data Explorer</a>
-  <a href="/docs" class="nav-link">API Docs</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Swim Map</a>
+    <a href="/explorer" class="nav-link active">Data Explorer</a>
+    <a href="/docs" class="nav-link">API Docs</a>
+  </div>
 </div>
 
 <div class="tabs">
@@ -184,8 +188,9 @@
     <div id="overview-content" style="display:none">
       <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px;line-height:1.6;font-size:.9rem;color:#2d3748">
         <p style="margin:0 0 10px">Welcome to the <strong>Can I Swim Here? Data Explorer</strong> — a research tool for journalists, campaigners, and anyone who wants to dig into sewage overflow data across England, Wales and Scotland.</p>
-        <p style="margin:0 0 10px">This dashboard draws on open data from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, spill counts from the 2024 EDM annual return, and bathing water classifications. Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
-        <p style="margin:0 0 10px;font-size:.85rem;color:#718096"><strong style="color:#4a5568">Why 2024 data?</strong> Spill counts come from the Environment Agency's Event Duration Monitoring (EDM) annual return, which water companies are required to publish once a year. The most recent available dataset covers the <strong>2024 reporting year</strong> (January–December 2024), published in spring 2025. The 2025 annual return is expected to be published in spring 2026 — we will update the site as soon as the new data becomes available. Live overflow discharge status is updated in near-real-time throughout the year.</p>
+        <p style="margin:0 0 10px">This dashboard combines <strong>near-real-time storm overflow monitoring</strong> with historical spill data from official sources. Live discharge status is pulled from water company feeds throughout the day, so you can see which overflows are actively discharging <em>right now</em> via the <a href="/" style="color:#3182ce">Swim Map</a>. Alongside the live data, we draw on open datasets from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, annual spill counts, and bathing water classifications.</p>
+        <p style="margin:0 0 10px">Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
+        <p style="margin:0 0 10px;font-size:.85rem;color:#718096"><strong style="color:#4a5568">Why do spill counts show 2024?</strong> Annual spill counts and durations come from the Environment Agency's Event Duration Monitoring (EDM) annual return, which water companies are required to publish once a year. The most recent dataset covers the <strong>2024 reporting year</strong> (January–December 2024), published in spring 2025. The 2025 return is expected in spring 2026 — we will update the site as soon as it becomes available. <strong>Live overflow discharge status is monitored and updated in near-real-time throughout the year</strong> and is not affected by this annual cycle.</p>
         <p style="margin:0;color:#718096;font-size:.82rem">All data can be downloaded as CSV for your own analysis. For programmatic access, see the <a href="/docs" style="color:#3182ce">API documentation</a>.</p>
       </div>
       <div class="stat-cards" id="overview-stats"></div>

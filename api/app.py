@@ -244,11 +244,13 @@ def custom_docs():
   #site-header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
   #swagger-ui { overflow-x: hidden; }
   .swagger-ui .wrapper { max-width: 100vw; overflow-x: hidden; padding: 0 8px; }
+  .nav-links { display: flex; gap: 12px; }
   @media (max-width: 640px) {
-    #site-header { gap: 6px; padding: 10px 12px; }
-    #site-header h1 { width: 100%; font-size: 1.1rem; }
+    #site-header { gap: 8px; padding: 12px 14px; }
+    #site-header h1 { width: 100%; font-size: 1.25rem; }
     #site-header .spacer { display: none; }
-    #site-header a.nav-link { font-size: .8rem; }
+    .nav-links { width: 100%; justify-content: space-between; }
+    #site-header a.nav-link { font-size: .95rem; padding: 4px 0; }
   }
 </style>
 </head>
@@ -256,9 +258,11 @@ def custom_docs():
 <div id="site-header">
   <h1><a href="/">🏊 Can I Swim Here?</a> <span>— API Docs</span></h1>
   <span class="spacer"></span>
-  <a href="/" class="nav-link">Swim Map</a>
-  <a href="/explorer" class="nav-link">Data Explorer</a>
-  <a href="/docs" class="nav-link active">API Docs</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Swim Map</a>
+    <a href="/explorer" class="nav-link">Data Explorer</a>
+    <a href="/docs" class="nav-link active">API Docs</a>
+  </div>
 </div>
 <div id="swagger-ui"></div>
 <div style="max-width:900px;margin:30px auto;padding:0 20px">
