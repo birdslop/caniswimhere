@@ -1,0 +1,60 @@
+name: Social Media Bot
+
+on:
+  schedule:
+    # Poll NSOH endpoints every 30 minutes
+    - cron: '*/30 * * * *'
+    # Post to social media at 05:00 and 17:00 UTC
+    # (covers 06:00/18:00 UK time in both GMT and BST)
+    - cron: '0 5,17 * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to run'
+        required: true
+        type: choice
+        options:
+          - poll
+          - post
+          - both
+
+jobs:
+  poll:
+    if: >-
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.task == 'poll' || github.event.inputs.task == 'both')
+      || (github.event_name == 'schedule' && github.event.schedule == '*/30 * * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install psycopg[binary]
+      - name: Poll NSOH endpoints
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/poll_nsoh.py
+
+  post:
+    if: >-
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.task == 'post' || github.event.inputs.task == 'both')
+      || (github.event_name == 'schedule' && github.event.schedule == '0 5,17 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install psycopg[binary] atproto tweepy
+      - name: Post to social media
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: python scripts/post_social.py
