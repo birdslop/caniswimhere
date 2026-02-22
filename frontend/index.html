@@ -14,6 +14,7 @@
     padding: 12px 20px; display: flex; align-items: center; gap: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,.15);
     z-index: 1000; position: sticky; top: 0;
+    flex-wrap: wrap;
   }
   #header h1 { font-size: 1.3rem; font-weight: 700; }
   #header .spacer { flex: 1; }
@@ -43,7 +44,7 @@
   }
   #search-btn:hover { background: rgba(255,255,255,.3); }
 
-  #map { height: calc(100vh - 52px); width: 100%; }
+  #map { height: calc(100vh - 52px); height: calc(100dvh - 52px); width: 100%; }
 
   #panel {
     position: absolute; top: 62px; right: 10px; z-index: 1000;
@@ -230,12 +231,13 @@
   .source-tag { display: inline-block; background: #e2e8f0; color: #4a5568; font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
 
   @media (max-width: 640px) {
-    #header { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    #header { gap: 8px; padding: 12px 14px; }
     #header h1 { font-size: 1.25rem; width: 100%; }
     #search-form { order: 3; max-width: 100%; flex-basis: 100%; }
     #header .spacer { display: none; }
     .nav-links { display: flex; width: 100%; justify-content: space-between; }
     #header a.nav-link { font-size: .95rem; padding: 4px 0; }
+    #map { height: calc(100dvh - 120px); }
     #panel { width: calc(100vw - 20px); right: 10px; top: 130px; }
   }
 </style>
