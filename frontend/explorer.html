@@ -190,6 +190,7 @@
         <p style="margin:0 0 10px">Welcome to the <strong>Can I Swim Here? Data Explorer</strong> — a research tool for journalists, campaigners, and anyone who wants to dig into sewage overflow data across England, Wales and Scotland.</p>
         <p style="margin:0 0 10px">This dashboard combines <strong>near-real-time storm overflow monitoring</strong> with historical spill data from official sources. Live discharge status is pulled from water company feeds throughout the day, so you can see which overflows are actively discharging <em>right now</em> via the <a href="/" style="color:#3182ce">Swim Map</a>. Alongside the live data, we draw on open datasets from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, annual spill counts, and bathing water classifications.</p>
         <p style="margin:0 0 10px">Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
+        <p id="overview-last-updated" style="margin:0 0 10px;color:#718096;font-size:.85rem">Live discharge snapshot: loading…</p>
         <p style="margin:0 0 10px;font-size:.85rem"><strong>Why do spill counts show 2024?</strong> Annual spill counts and durations come from the Environment Agency's Event Duration Monitoring (EDM) annual return, which water companies are required to publish once a year. The most recent dataset covers the <strong>2024 reporting year</strong> (January–December 2024), published in spring 2025. The 2025 return is expected in spring 2026 — we will update the site as soon as it becomes available. <strong>Live overflow discharge status is monitored and updated in near-real-time throughout the year</strong> and is not affected by this annual cycle.</p>
         <p style="margin:0;color:#718096;font-size:.82rem">All data can be downloaded as CSV for your own analysis. For programmatic access, see the <a href="/docs" style="color:#3182ce">API documentation</a>.</p>
       </div>
@@ -215,6 +216,7 @@
         <p style="margin:0 0 10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
         <p style="margin:0 0 10px;color:#718096;font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
         <p style="margin:0;font-size:.85rem"><strong style="color:#1a365d">Follow us:</strong> <a href="https://bsky.app/profile/caniswimhere.bsky.social" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">🦋 Bluesky</a> &nbsp;&middot;&nbsp; <a href="https://x.com/caniswimhere" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">&#x1D54F; X</a></p>
+        <p style="margin:10px 0 0;color:#718096;font-size:.82rem"><strong style="color:#4a5568">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
       </div>
     </div>
   </div>
@@ -786,6 +788,21 @@ async function populateCompanyDropdown() {
     });
   } catch (e) { /* silent */ }
 }
+
+// ── Live last-updated label ───────────────────────────────────
+async function updateOverviewLastUpdated(){
+  try {
+    const r = await fetch('/api/research/live-summary');
+    const d = await r.json();
+    if (d && d.last_polled) {
+      const dt = new Date(d.last_polled);
+      const fmt = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+      const el = document.getElementById('overview-last-updated');
+      if (el) el.textContent = 'Live discharge snapshot updated ' + fmt.format(dt) + ' UK. Annual spill data: 2024 EDM (published spring 2025).';
+    }
+  } catch(_) {}
+}
+updateOverviewLastUpdated();
 
 // ── Sticky tabs offset ────────────────────────────────────────
 function updateTabsOffset() {

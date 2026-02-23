@@ -202,6 +202,29 @@ def health():
 app.mount("/static", StaticFiles(directory=str(_FRONTEND)), name="static")
 
 
+# Robots and favicon
+from fastapi.responses import PlainTextResponse
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    return PlainTextResponse(
+        "User-agent: *\nAllow: /\n",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+_FAVICON_SVG = """
+<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>
+  <rect width='64' height='64' rx='12' fill='#1a365d'/>
+  <text x='32' y='40' font-size='34' text-anchor='middle' dominant-baseline='middle'>🏊</text>
+</svg>
+"""
+
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
+def favicon():
+    return Response(_FAVICON_SVG, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=604800"})
+
+
 @app.get("/")
 def index():
     return FileResponse(str(_FRONTEND / "index.html"))
@@ -267,10 +290,12 @@ def custom_docs():
 <div id="swagger-ui"></div>
 <div style="max-width:900px;margin:30px auto;padding:0 20px">
   <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);line-height:1.6;font-size:.9rem;color:#2d3748">
+    <p id="docs-last-updated" style="margin:0 0 10px;color:#718096;font-size:.85rem">Live discharge snapshot: loading…</p>
     <p style="margin:0 0 10px;font-weight:700;color:#1a365d">Support This Project</p>
     <p style="margin:0 0 10px">Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
     <p style="margin:0 0 10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
     <p style="margin:0;color:#718096;font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
+    <p style="margin:10px 0 0;color:#718096;font-size:.82rem"><strong style="color:#4a5568">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
@@ -283,6 +308,14 @@ SwaggerUIBundle({
   presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
   layout: 'BaseLayout',
 });
+
+// Last updated label
+fetch('/api/research/live-summary').then(r=>r.json()).then(d=>{
+  if (!d || !d.last_polled) return;
+  const dt = new Date(d.last_polled);
+  const fmt = new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+  document.getElementById('docs-last-updated').textContent = 'Live discharge snapshot updated ' + fmt.format(dt) + ' UK. Annual spill data: 2024 EDM (published spring 2025).';
+}).catch(()=>{});
 </script>
 </body>
 </html>

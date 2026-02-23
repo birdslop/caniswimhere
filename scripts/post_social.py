@@ -93,8 +93,7 @@ def build_message(stats: dict) -> str:
         f"\U0001f6a8 In the last 12 hours, we\u2019ve recorded {n12} sewage "
         f"discharge events across England & Scotland.",
         "",
-        f"Right now, {active} storm overflows are actively discharging.",
-        "",
+        "Visit our site for more info →",
         f"\U0001f30a {SITE_URL}",
         "",
         HASHTAGS,

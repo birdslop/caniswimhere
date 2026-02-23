@@ -19,11 +19,12 @@ router = APIRouter(prefix="/research", tags=["Research"])
 
 def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
     """Return a list of dicts as a downloadable CSV."""
+    cache_hdr = {"Cache-Control": "public, max-age=3600"}
     if not rows:
         return StreamingResponse(
             iter(["" ]),
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+            headers={"Content-Disposition": f"attachment; filename={filename}", **cache_hdr},
         )
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
@@ -33,7 +34,7 @@ def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f"attachment; filename={filename}", **cache_hdr},
     )
 
 
