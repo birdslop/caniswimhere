@@ -245,29 +245,50 @@ def custom_docs():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API Docs — Can I Swim Here?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
 <style>
+  :root {
+    --navy: #0f2b46;
+    --accent: #0284c7;
+    --accent-light: #e0f2fe;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.06);
+    --radius: 10px;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { overflow-x: hidden; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { font-family: var(--font-body); color: var(--text); line-height: 1.6; }
   #site-header {
-    background: #1a365d; color: #fff;
-    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.15); position: sticky; top: 0; z-index: 1000;
+    background: var(--navy); color: #fff;
+    padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    border-bottom: 2px solid rgba(2,132,199,.35);
+    position: sticky; top: 0; z-index: 1000;
     flex-wrap: wrap;
   }
-  #site-header h1 { font-size: 1.3rem; font-weight: 700; white-space: nowrap; }
+  #site-header h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; white-space: nowrap; letter-spacing: -.02em; }
   #site-header h1 a { color: #fff; text-decoration: none; }
-  #site-header h1 span { font-weight: 400; color: #cbd5e0; }
+  #site-header h1 span { font-weight: 400; color: #94a3b8; }
   #site-header .spacer { flex: 1; }
   #site-header a.nav-link {
-    color: #cbd5e0; text-decoration: none; font-weight: 600; font-size: .9rem; white-space: nowrap;
+    color: #94a3b8; text-decoration: none; font-weight: 600; font-size: 1.05rem;
+    white-space: nowrap; transition: color .2s;
   }
-  #site-header a.nav-link:hover { color: #fff; text-decoration: underline; }
-  #site-header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
+  #site-header a.nav-link:hover { color: #fff; }
+  #site-header a.nav-link.active { color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
   #swagger-ui { overflow-x: hidden; }
   .swagger-ui .wrapper { max-width: 100vw; overflow-x: hidden; padding: 0 8px; }
-  .nav-links { display: flex; gap: 12px; }
+  .nav-links { display: flex; gap: 20px; }
   @media (max-width: 640px) {
     #site-header { gap: 8px; padding: 12px 14px; }
     #site-header h1 { width: 100%; font-size: 1.25rem; }
@@ -289,13 +310,13 @@ def custom_docs():
 </div>
 <div id="swagger-ui"></div>
 <div style="max-width:900px;margin:30px auto;padding:0 20px">
-  <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);line-height:1.6;font-size:.9rem;color:#2d3748">
-    <p id="docs-last-updated" style="margin:0 0 10px;color:#718096;font-size:.85rem">Live discharge snapshot: loading…</p>
-    <p style="margin:0 0 10px;font-weight:700;color:#1a365d">Support This Project</p>
+  <div style="background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);border:1px solid var(--border-light);line-height:1.7;font-size:.9rem;color:var(--text)">
+    <p id="docs-last-updated" style="margin:0 0 10px;color:var(--text-secondary);font-size:.85rem">Live discharge snapshot: loading…</p>
+    <p style="margin:0 0 10px;font-weight:700;color:var(--navy);font-family:var(--font-heading)">Support This Project</p>
     <p style="margin:0 0 10px">Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
     <p style="margin:0 0 10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
-    <p style="margin:0;color:#718096;font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
-    <p style="margin:10px 0 0;color:#718096;font-size:.82rem"><strong style="color:#4a5568">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
+    <p style="margin:0;color:var(--text-secondary);font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a></p>
+    <p style="margin:10px 0 0;color:var(--text-secondary);font-size:.82rem"><strong style="color:#475569">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>

@@ -4,111 +4,142 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Can I Swim Here?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
+  :root {
+    --navy: #0f2b46;
+    --accent: #0284c7;
+    --accent-light: #e0f2fe;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.06);
+    --shadow-md: 0 2px 8px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.08);
+    --radius: 10px;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { font-family: var(--font-body); color: var(--text); line-height: 1.6; }
 
   #header {
-    background: #1a365d; color: #fff;
-    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    background: var(--navy); color: #fff;
+    padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    border-bottom: 2px solid rgba(2,132,199,.35);
     z-index: 1000; position: sticky; top: 0;
     flex-wrap: wrap;
   }
-  #header h1 { font-size: 1.3rem; font-weight: 700; }
+  #header h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; }
   #header .spacer { flex: 1; }
   #header a.nav-link {
-    color: #cbd5e0; text-decoration: none; font-weight: 600; font-size: .9rem;
-    white-space: nowrap;
+    color: #94a3b8; text-decoration: none; font-weight: 600; font-size: 1.05rem;
+    white-space: nowrap; transition: color .2s;
   }
-  #header a.nav-link:hover { color: #fff; text-decoration: underline; }
-  .nav-links { display: flex; gap: 12px; }
+  #header a.nav-link:hover { color: #fff; }
+  .nav-links { display: flex; gap: 20px; }
 
   /* Search bar */
   #search-form {
     display: flex; align-items: center; gap: 0;
-    background: rgba(255,255,255,.15); border-radius: 6px;
+    background: rgba(255,255,255,.12); border-radius: 8px;
     overflow: hidden; max-width: 320px; flex: 1;
+    border: 1px solid rgba(255,255,255,.15);
+    transition: background .2s, border-color .2s;
   }
+  #search-form:focus-within { background: rgba(255,255,255,.18); border-color: rgba(2,132,199,.5); }
   #search-input {
     border: none; outline: none; background: transparent;
-    color: #fff; padding: 6px 12px; font-size: .85rem;
+    color: #fff; padding: 7px 14px; font-size: .85rem;
+    font-family: var(--font-body);
     width: 100%; min-width: 0;
   }
-  #search-input::placeholder { color: rgba(255,255,255,.5); }
+  #search-input::placeholder { color: rgba(255,255,255,.45); }
   #search-btn {
-    background: rgba(255,255,255,.2); border: none; color: #fff;
-    padding: 6px 10px; cursor: pointer; font-size: .85rem;
-    white-space: nowrap;
+    background: rgba(255,255,255,.15); border: none; color: #fff;
+    padding: 7px 12px; cursor: pointer; font-size: .85rem;
+    white-space: nowrap; transition: background .2s;
   }
-  #search-btn:hover { background: rgba(255,255,255,.3); }
+  #search-btn:hover { background: rgba(255,255,255,.25); }
 
-  #map { height: calc(100vh - 52px); height: calc(100dvh - 52px); width: 100%; }
+  #map { height: calc(100vh - 56px); height: calc(100dvh - 56px); width: 100%; }
+  .leaflet-top.leaflet-left { top: 10px; }
 
   #panel {
-    position: absolute; top: 62px; right: 10px; z-index: 1000;
-    background: #fff; border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    position: absolute; top: 66px; right: 10px; z-index: 1000;
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
     width: 360px; max-height: calc(100vh - 80px);
     overflow-y: auto; display: none;
   }
   #panel.visible { display: block; }
   #panel-header {
-    padding: 14px 16px; background: #f7fafc;
-    border-bottom: 1px solid #e2e8f0;
-    border-radius: 8px 8px 0 0;
+    padding: 14px 16px; background: var(--border-light);
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
     display: flex; justify-content: space-between; align-items: center;
   }
-  #panel-header h2 { font-size: 1rem; color: #1a365d; }
-  #panel-close { cursor: pointer; font-size: 1.2rem; color: #718096; border: none; background: none; }
+  #panel-header h2 { font-family: var(--font-heading); font-size: 1rem; color: var(--navy); }
+  #panel-close { cursor: pointer; font-size: 1.2rem; color: var(--text-secondary); border: none; background: none; transition: color .15s; }
+  #panel-close:hover { color: var(--text); }
   #panel-body { padding: 0; }
 
-.section { border-bottom: 1px solid #e2e8f0; }
+.section { border-bottom: 1px solid var(--border); }
   .section:last-child { border-bottom: none; }
   .section.collapsed .section-items { display: none; }
   .section-title {
     padding: 10px 16px; font-size: .8rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: .5px;
-    color: #718096; background: #f7fafc;
+    color: var(--text-secondary); background: var(--border-light);
     cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    transition: background .15s;
   }
+  .section-title:hover { background: var(--accent-light); }
   .section-title .left { display: flex; align-items: center; gap: 8px; }
-  .section-title .chev { font-size: .9rem; color: #a0aec0; width: 12px; display: inline-block; }
+  .section-title .chev { font-size: .9rem; color: #94a3b8; width: 12px; display: inline-block; }
   .section-title .count {
-    background: #e2e8f0; border-radius: 10px;
+    background: var(--border); border-radius: 10px;
     padding: 1px 8px; font-size: .75rem;
   }
   .section-items { padding: 0; }
   .item {
-    padding: 8px 16px; border-bottom: 1px solid #f0f0f0;
+    padding: 8px 16px; border-bottom: 1px solid var(--border-light);
     cursor: pointer; transition: background .15s;
   }
-.item:hover { background: #e2e8f0; }
+  .item:hover { background: #f0f7ff; }
   .item:last-child { border-bottom: none; }
-  .item-name { font-weight: 600; font-size: .85rem; color: #2d3748; }
-  .item-detail { font-size: .75rem; color: #718096; margin-top: 2px; }
+  .item-name { font-weight: 600; font-size: .85rem; color: var(--text); }
+  .item-detail { font-size: .75rem; color: var(--text-secondary); margin-top: 2px; }
   .item-distance {
-    font-size: .7rem; color: #a0aec0; float: right; margin-top: 2px;
+    font-size: .7rem; color: #94a3b8; float: right; margin-top: 2px;
   }
 
   .badge {
-    display: inline-block; font-size: .65rem; padding: 1px 6px;
-    border-radius: 3px; font-weight: 600; margin-left: 4px;
+    display: inline-block; font-size: .65rem; padding: 2px 7px;
+    border-radius: 4px; font-weight: 600; margin-left: 4px; letter-spacing: .02em;
   }
-  .badge-green { background: #c6f6d5; color: #276749; }
-  .badge-amber { background: #fefcbf; color: #975a16; }
-  .badge-red   { background: #fed7d7; color: #9b2c2c; }
-  .badge-grey  { background: #e2e8f0; color: #4a5568; }
-  .badge-blue  { background: #bee3f8; color: #2a4365; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-amber { background: #fef9c3; color: #854d0e; }
+  .badge-red   { background: #fee2e2; color: #991b1b; }
+  .badge-grey  { background: var(--border); color: #475569; }
+  .badge-blue  { background: #dbeafe; color: #1e40af; }
 
   .hint {
     position: absolute; bottom: 30px; left: 50%;
     transform: translateX(-50%); z-index: 1000;
-    background: rgba(26,54,93,.9); color: #fff;
-    padding: 10px 20px; border-radius: 8px;
+    background: rgba(15,43,70,.88); color: #fff;
+    padding: 10px 22px; border-radius: var(--radius);
     font-size: .85rem; pointer-events: none;
     transition: opacity .5s;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
   .hint.hidden { opacity: 0; }
 
@@ -116,49 +147,87 @@
     position: absolute; top: 50%; left: 50%; z-index: 2000;
     transform: translate(-50%,-50%);
     background: rgba(255,255,255,.95); padding: 20px 30px;
-    border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    border-radius: var(--radius); box-shadow: var(--shadow-md);
     font-size: .9rem; display: none;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
   .loading.visible { display: block; }
 
   /* Detail panel */
-  .verdict-banner {
-    padding: 16px; color: #fff; font-weight: 600; font-size: .95rem;
-    display: flex; align-items: center; gap: 10px;
+  .verdict-row {
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
   }
-  .verdict-green  { background: #38a169; }
-  .verdict-amber  { background: #d69e2e; }
-  .verdict-red    { background: #e53e3e; }
-  .verdict-icon   { font-size: 1.5rem; }
-  .verdict-text   { font-size: .8rem; font-weight: 400; margin-top: 4px; line-height: 1.4; }
+  .verdict-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-heading); font-weight: 700; font-size: .88rem;
+    padding: 6px 16px; border-radius: 20px; white-space: nowrap;
+  }
+  .verdict-pill-green  { background: #dcfce7; color: #166534; }
+  .verdict-pill-amber  { background: #fef9c3; color: #854d0e; }
+  .verdict-pill-red    { background: #fee2e2; color: #991b1b; }
+  .verdict-pill-grey   { background: var(--border); color: #475569; }
+  .verdict-desc { font-size: .82rem; color: var(--text-secondary); line-height: 1.4; }
 
-  .detail-section { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+  .location-header {
+    padding: 16px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .location-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+  }
+  .location-icon-bathing { background: #dbeafe; }
+  .location-icon-overflow { background: #fee2e2; }
+  .location-icon-sampling { background: #ede9fe; }
+  .location-icon-station { background: #ffedd5; }
+  .location-icon-recreation { background: #dcfce7; }
+  .location-icon-default { background: var(--border-light); }
+  .location-name { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 700; color: var(--navy); line-height: 1.3; }
+  .location-cat { font-size: .78rem; color: var(--text-secondary); margin-top: 1px; }
+
+  .detail-section { padding: 16px; border-bottom: 1px solid var(--border); }
   .detail-section:last-child { border-bottom: none; }
   .detail-section h3 {
-    font-size: .75rem; text-transform: uppercase; letter-spacing: .5px;
-    color: #718096; margin-bottom: 8px;
+    font-family: var(--font-heading); font-size: .92rem; font-weight: 700;
+    color: var(--navy); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
   }
+  .detail-section h3 .sec-icon { font-size: 1rem; }
+  .detail-section h3 .sec-sub { font-family: var(--font-body); font-weight: 400; font-size: .72rem; color: #94a3b8; margin-left: 4px; }
   .reading-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 4px 0; font-size: .82rem;
+    padding: 8px 12px; font-size: .84rem; border-radius: 6px;
   }
-  .reading-label { color: #4a5568; }
-  .reading-value { font-weight: 600; color: #2d3748; }
-  .reading-date  { font-size: .7rem; color: #a0aec0; }
-  .reading-assessment { font-size: .7rem; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .reading-row:nth-child(odd) { background: var(--border-light); }
+  .reading-label { color: #475569; }
+  .reading-value { font-weight: 600; color: var(--text); }
+  .reading-date  { font-size: .7rem; color: #94a3b8; }
+  .reading-assessment { font-size: .7rem; padding: 1px 5px; border-radius: 4px; margin-left: 4px; }
+  .reading-note {
+    margin-top: 8px; padding: 8px 12px; background: var(--border-light);
+    border-radius: 6px; font-size: .8rem; color: var(--text-secondary);
+    border-left: 3px solid var(--accent);
+  }
 
   .overflow-card {
-    background: #fff5f5; border-radius: 6px; padding: 8px 12px;
-    margin-bottom: 6px; border-left: 3px solid #e53e3e;
+    background: #fef2f2; border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 6px; border-left: 3px solid #ef4444;
   }
-  .overflow-card .oc-name { font-weight: 600; font-size: .82rem; color: #2d3748; }
-  .overflow-card .oc-detail { font-size: .72rem; color: #718096; margin-top: 2px; }
+  .overflow-card .oc-name { font-weight: 600; font-size: .84rem; color: var(--text); }
+  .overflow-card .oc-detail { font-size: .74rem; color: var(--text-secondary); margin-top: 2px; }
+
+  .detail-disclaimer {
+    padding: 14px 16px; font-size: .76rem; color: #94a3b8; line-height: 1.5;
+    border-top: 1px solid var(--border-light);
+  }
 
   /* Live overflow status */
   .live-tag {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: .7rem; font-weight: 700; padding: 2px 8px;
-    border-radius: 4px; text-transform: uppercase;
+    font-size: .7rem; font-weight: 700; padding: 3px 10px;
+    border-radius: 12px; text-transform: uppercase;
   }
   .live-tag-red { background: #fed7d7; color: #9b2c2c; }
   .live-tag-green { background: #c6f6d5; color: #276749; }
@@ -175,29 +244,30 @@
     100% { opacity: 1; transform: scale(1); }
   }
   .live-card {
-    border-radius: 6px; padding: 8px 12px;
+    border-radius: 8px; padding: 10px 14px;
     margin-bottom: 6px; font-size: .82rem;
   }
-  .live-card-active { background: #fff5f5; border-left: 3px solid #e53e3e; }
-  .live-card-recent { background: #fffbeb; border-left: 3px solid #d69e2e; }
-  .live-card-ok { background: #f0fff4; border-left: 3px solid #38a169; }
+  .live-card-active { background: #fef2f2; border-left: 3px solid #ef4444; }
+  .live-card-recent { background: #fffbeb; border-left: 3px solid #eab308; }
+  .live-card-ok { background: #f0fdf4; border-left: 3px solid #22c55e; }
 
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .stat-box {
-    text-align: center; background: #f7fafc; border-radius: 6px; padding: 8px;
+    text-align: center; background: var(--border-light); border-radius: 8px; padding: 10px;
   }
-  .stat-number { font-size: 1.3rem; font-weight: 700; color: #2d3748; }
-  .stat-label  { font-size: .65rem; color: #718096; text-transform: uppercase; }
+  .stat-number { font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700; color: var(--text); }
+  .stat-label  { font-size: .65rem; color: var(--text-secondary); text-transform: uppercase; }
 
   .back-btn {
-    background: none; border: none; color: #3182ce; cursor: pointer;
+    background: none; border: none; color: var(--accent); cursor: pointer;
     font-size: .82rem; padding: 0; display: flex; align-items: center; gap: 4px;
+    transition: color .15s;
   }
-  .back-btn:hover { text-decoration: underline; }
+  .back-btn:hover { text-decoration: underline; color: #0369a1; }
 
-  .no-data { color: #a0aec0; font-size: .82rem; font-style: italic; }
+  .no-data { color: #94a3b8; font-size: .82rem; font-style: italic; }
 
-  .location-title { padding: 12px 16px; font-size: 1rem; font-weight: 700; color: #1a365d; border-bottom: 1px solid #e2e8f0; }
+  .location-title { padding: 12px 16px; font-family: var(--font-heading); font-size: 1rem; font-weight: 700; color: var(--navy); border-bottom: 1px solid var(--border); display: none; }
 
   /* Selected marker visual emphasis */
   .leaflet-marker-icon.selected-marker {
@@ -207,28 +277,30 @@
 
   /* Overlay shared styles */
   .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    position: fixed; inset: 0; background: rgba(15,43,70,.5);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
     display: none; align-items: center; justify-content: center; z-index: 2000;
   }
   .overlay.visible { display: flex; }
   .overlay-card {
-    background: rgba(255,255,255,0.98); width: min(680px, 92vw);
+    background: var(--card); width: min(680px, 92vw);
     max-height: 90vh; overflow-y: auto;
-    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    border-radius: 12px; box-shadow: 0 8px 40px rgba(15,43,70,.3);
   }
-  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
-  .overlay-title { font-size: 1.1rem; font-weight: 800; color: #1a365d; }
-  .overlay-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #4a5568; }
-  .overlay-body { padding: 14px 16px; color: #2d3748; font-size: .95rem; line-height: 1.55; }
+  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .overlay-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 800; color: var(--navy); }
+  .overlay-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-secondary); transition: color .15s; }
+  .overlay-close:hover { color: var(--text); }
+  .overlay-body { padding: 16px 18px; color: var(--text); font-size: .95rem; line-height: 1.6; }
   .overlay-body ul { margin-left: 6px; margin-top: 6px; list-style: none; }
   .overlay-body li { margin: 10px 0; display: flex; align-items: center; gap: 10px; }
   .overlay-body li svg { flex-shrink: 0; }
-  .overlay-body h3 { font-size: .95rem; color: #1a365d; margin: 16px 0 6px; }
+  .overlay-body h3 { font-family: var(--font-heading); font-size: .95rem; color: var(--navy); margin: 18px 0 6px; }
   .overlay-body h3:first-child { margin-top: 0; }
   .overlay-body p { margin: 6px 0; }
   .source-list { margin-top: 6px; }
   .source-list li { font-size: .88rem; align-items: flex-start; }
-  .source-tag { display: inline-block; background: #e2e8f0; color: #4a5568; font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
+  .source-tag { display: inline-block; background: var(--accent-light); color: #0c4a6e; font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; white-space: nowrap; min-width: 72px; text-align: center; flex-shrink: 0; }
 
   @media (max-width: 640px) {
     #header { gap: 8px; padding: 12px 14px; }
@@ -237,8 +309,8 @@
     #header .spacer { display: none; }
     .nav-links { display: flex; width: 100%; justify-content: space-between; }
     #header a.nav-link { font-size: .95rem; padding: 4px 0; }
-    #map { height: calc(100dvh - 120px); }
-    #panel { width: calc(100vw - 20px); right: 10px; top: 130px; }
+    #map { height: calc(100dvh - 124px); }
+    #panel { width: calc(100vw - 20px); right: 10px; top: 134px; }
   }
 </style>
 </head>
@@ -308,8 +380,15 @@
     <div class="overlay-body">
       <p><strong>Can I Swim Here?</strong> helps you make informed decisions about wild swimming and water recreation across England, Wales and Scotland. It combines multiple official data sources into a single, easy-to-read traffic-light verdict for any location.</p>
 
-      <h3>How Verdicts Work</h3>
-      <p>Each location receives a <strong style="color:#38a169">Green</strong>, <strong style="color:#d69e2e">Amber</strong>, or <strong style="color:#e53e3e">Red</strong> verdict based on the latest available water quality readings, nearby storm overflow activity, recent rainfall, and official bathing water assessments. When data is old or unavailable, the verdict is downgraded and a warning is shown — we never present stale data as if it were current.</p>
+      <h3>Verdicts</h3>
+      <p>Each location receives a verdict based on the latest available water quality readings, nearby storm overflow activity, recent rainfall, and official bathing water assessments:</p>
+      <ul style="margin-top:10px;gap:8px">
+        <li><span class="verdict-pill verdict-pill-green" style="font-size:.82rem;padding:5px 14px">✓ Good to swim</span> <span>Water quality is good, no active overflows nearby.</span></li>
+        <li><span class="verdict-pill verdict-pill-amber" style="font-size:.82rem;padding:5px 14px">! Use caution</span> <span>Elevated bacteria, recent rainfall, or nearby overflow activity.</span></li>
+        <li><span class="verdict-pill verdict-pill-red" style="font-size:.82rem;padding:5px 14px">✗ Not advised</span> <span>Poor water quality or active discharge detected.</span></li>
+        <li><span class="verdict-pill verdict-pill-grey" style="font-size:.82rem;padding:5px 14px">No data</span> <span>Insufficient or outdated data available.</span></li>
+      </ul>
+      <p style="margin-top:8px;font-size:.88rem">When data is old or unavailable, the verdict is downgraded and a warning is shown — we never present stale data as if it were current.</p>
 
       <h3>Data Sources</h3>
       <p>All data comes from official, publicly available sources across England, Wales and Scotland:</p>
@@ -333,13 +412,13 @@
       <p>This project is built on open government data from multiple UK regulators and water companies. Contains Environment Agency information &copy; Environment Agency and database right. Includes data from Natural Resources Wales and the Scottish Environment Protection Agency. Uses Ordnance Survey and OpenStreetMap data where applicable.</p>
 
       <h3>Methodology & Corrections</h3>
-      <p>Live discharge status is collected via the National Storm Overflow Hub and updates throughout the day. Annual spill counts come from the 2024 Event Duration Monitoring (EDM) return. If you spot an error, please email <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a>. Substantive corrections will be made promptly and noted transparently.</p>
+      <p>Live discharge status is collected via the National Storm Overflow Hub and updates throughout the day. Annual spill counts come from the 2024 Event Duration Monitoring (EDM) return. If you spot an error, please email <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a>. Substantive corrections will be made promptly and noted transparently.</p>
 
       <h3>Support This Project</h3>
       <p>Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
       <p style="margin-top:10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
-      <p style="margin-top:12px;font-size:.88rem;color:#718096">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
-      <p style="margin-top:10px;font-size:.88rem"><strong style="color:#1a365d">Follow us:</strong> <a href="https://bsky.app/profile/caniswimhere.bsky.social" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">🦋 Bluesky</a> &nbsp;&middot;&nbsp; <a href="https://x.com/caniswimhere" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">&#x1D54F; X</a></p>
+      <p style="margin-top:12px;font-size:.88rem;color:var(--text-secondary)">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a></p>
+      <p style="margin-top:10px;font-size:.88rem"><strong style="color:var(--navy)">Follow us:</strong> <a href="https://bsky.app/profile/caniswimhere.bsky.social" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">🦋 Bluesky</a> &nbsp;&middot;&nbsp; <a href="https://x.com/caniswimhere" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">&#x1D54F; X</a></p>
     </div>
   </div>
 </div>
@@ -711,27 +790,38 @@ function showDetail(data) {
 
   title.innerHTML = '<button class="back-btn" onclick="goBack()">← Back to results</button>';
 
-  // ── Location title ───────────────────────────────────────
+  // ── Location header (icon + name + category) ────────────
   const bwName = (data.bathing_water && data.bathing_water.name) || null;
   const spName = (data.nearest_sampling_point && data.nearest_sampling_point.name) || null;
   const baseName = currentSelectionTitle || bwName || spName || `${data.location.lat.toFixed(5)}, ${data.location.lon.toFixed(5)}`;
-  const cat = currentSelectionCategory || (bwName ? 'Designated Bathing Waters' : (spName ? 'Water Quality Monitoring' : ''));
-  const headerLine = cat ? `${titleCase(baseName)} - ${titleCase(cat)}` : titleCase(baseName);
-  body.innerHTML += `<div class="location-title">${headerLine}</div>`;
-
-  // ── Verdict banner ───────────────────────────────────────
-  const v = data.verdict || {};
-  const levelClass = `verdict-${v.level || 'amber'}`;
-  const levelIcon = v.level === 'green' ? '✅' : v.level === 'red' ? '🚫' : '⚠️';
-  const levelLabel = v.level === 'green' ? 'Looks Good'
-    : v.level === 'red' ? 'Caution Advised' : 'Some Concerns';
+  const cat = currentSelectionCategory || (bwName ? 'Designated Bathing Water' : (spName ? 'Water Quality Monitoring' : ''));
+  const iconClass = cat.includes('Bathing') ? 'bathing' : cat.includes('Overflow') ? 'overflow' : cat.includes('Sampling') || cat.includes('Quality') ? 'sampling' : cat.includes('Station') ? 'station' : cat.includes('Recreation') || cat.includes('Swim') ? 'recreation' : 'default';
+  const iconEmoji = iconClass === 'bathing' ? '🏖' : iconClass === 'overflow' ? '⚠️' : iconClass === 'sampling' ? '💧' : iconClass === 'station' ? '📊' : iconClass === 'recreation' ? '🏊' : '📍';
   body.innerHTML += `
-    <div class="verdict-banner ${levelClass}">
-      <span class="verdict-icon">${levelIcon}</span>
+    <div class="location-header">
+      <div class="location-icon location-icon-${iconClass}">${iconEmoji}</div>
       <div>
-        <div>${levelLabel}</div>
-        <div class="verdict-text">${v.summary || ''}</div>
+        <div class="location-name">${titleCase(baseName)}</div>
+        ${cat ? `<div class="location-cat">${cat}</div>` : ''}
       </div>
+    </div>
+  `;
+
+  // ── Verdict pill ────────────────────────────────────────
+  const v = data.verdict || {};
+  const pillClass = v.level === 'green' ? 'verdict-pill-green'
+    : v.level === 'red' ? 'verdict-pill-red'
+    : v.level === 'grey' ? 'verdict-pill-grey'
+    : 'verdict-pill-amber';
+  const pillIcon = v.level === 'green' ? '✓' : v.level === 'red' ? '✗' : '!';
+  const pillLabel = v.level === 'green' ? 'Good to swim'
+    : v.level === 'red' ? 'Not advised'
+    : v.level === 'grey' ? 'No data'
+    : 'Use caution';
+  body.innerHTML += `
+    <div class="verdict-row">
+      <span class="verdict-pill ${pillClass}">${pillIcon} ${pillLabel}</span>
+      <span class="verdict-desc">${v.summary || 'Based on latest available data'}</span>
     </div>
   `;
 
@@ -744,9 +834,12 @@ function showDetail(data) {
     : freshness.status === 'stale'
     ? `<div style="background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16">⚠️ Data is ~${Math.round(freshness.age_days / 30)} months old.</div>`
     : '';
+  // Build a summary note for water quality if all readings are good
+  const allExcellent = readings.length > 0 && readings.every(r => { const a = assessReading(r.determinand, r.value); return a && (a.label === 'Excellent' || a.label === 'Good'); });
+  const wqNote = allExcellent ? '<div class="reading-note">All readings well within excellent thresholds.</div>' : '';
   body.innerHTML += `
     <div class="detail-section">
-      <h3>Water Quality${sp ? ` <span style="font-weight:400;text-transform:none;letter-spacing:0">from ${sp.name || sp.notation} (${formatDist(sp.distance_m)})</span>` : ''}</h3>
+      <h3><span class="sec-icon">💧</span> Water Quality${sp ? ` <span class="sec-sub">from ${sp.name || sp.notation} (${formatDist(sp.distance_m)})</span>` : ''}</h3>
       ${staleWarning}
       ${readings.length === 0
         ? '<div class="no-data">No recent water quality readings available nearby.</div>'
@@ -765,7 +858,7 @@ function showDetail(data) {
                 </div>
               </div>
             `;
-          }).join('')
+          }).join('') + wqNote
       }
     </div>
   `;
@@ -777,7 +870,7 @@ function showDetail(data) {
     var statusTag = activeCount > 0
       ? '<span class="live-tag live-tag-red"><span class="pulse-dot pulse-dot-red"></span> ' + activeCount + ' discharging now</span>'
       : '<span class="live-tag live-tag-green"><span class="pulse-dot pulse-dot-green"></span> None discharging</span>';
-    body.innerHTML += '<div class="detail-section"><h3>Live Overflow Status <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.7rem;color:#a0aec0">near-real-time</span></h3>' + statusTag;
+    body.innerHTML += '<div class="detail-section"><h3><span class="sec-icon">⚠️</span> Live Overflow Status <span class="sec-sub">near-real-time</span></h3>' + statusTag;
     body.innerHTML += liveOvs.slice(0, 5).map(function(o){
       var cardClass = o.status_code === 1 ? 'live-card-active' : (o.last_spill_hours_ago != null && o.last_spill_hours_ago <= 24 ? 'live-card-recent' : 'live-card-ok');
       var statusBit = o.status_code === 1
@@ -809,7 +902,7 @@ function showDetail(data) {
   var ov = (data.overflow_threat && data.overflow_threat.summary) || {};
   body.innerHTML += `
     <div class="detail-section">
-      <h3>Overflow History <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.7rem;color:#a0aec0">2024 annual return</span></h3>
+      <h3><span class="sec-icon">📊</span> Overflow History <span class="sec-sub">2024 annual return</span></h3>
       <div class="stat-grid">
         <div class="stat-box">
           <div class="stat-number">${ov.within_1km || 0}</div>
@@ -842,7 +935,7 @@ function showDetail(data) {
     const rf = data.rainfall;
     body.innerHTML += `
       <div class="detail-section">
-        <h3>Recent Rainfall</h3>
+        <h3><span class="sec-icon">🌧️</span> Recent Rainfall</h3>
         <div class="reading-row">
           <span class="reading-label">Last 6 hours</span>
           <span class="reading-value">${fmtNum(rf.last_6h_mm)} mm</span>
@@ -865,7 +958,7 @@ function showDetail(data) {
     const ba = data.bathing_assessment;
     body.innerHTML += `
       <div class="detail-section">
-        <h3>Designated Bathing Water</h3>
+        <h3><span class="sec-icon">🌊</span> Bathing Water Status</h3>
         <div class="reading-row">
           <span class="reading-label">${bw.name}</span>
           <span class="reading-value">${formatDist(bw.distance_m)}</span>
@@ -883,6 +976,9 @@ function showDetail(data) {
       </div>
     `;
   }
+
+  // ── Footer disclaimer ─────────────────────────────────
+  body.innerHTML += '<div class="detail-disclaimer">Data from official UK sources — Environment Agency, SEPA, NRW, and NSOH. For informational purposes only. Always check local signage before swimming.</div>';
 
   panel.classList.add('visible');
 }

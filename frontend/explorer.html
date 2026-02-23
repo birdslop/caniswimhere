@@ -4,42 +4,66 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Explorer — Can I Swim Here?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --navy: #0f2b46;
+    --accent: #0284c7;
+    --accent-light: #e0f2fe;
+    --accent-hover: #0369a1;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.06);
+    --shadow-md: 0 2px 8px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.08);
+    --radius: 10px;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { overflow-x: hidden; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7fafc; color: #2d3748; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); line-height: 1.6; }
 
   /* ── Header ──────────────────────────────────────────────── */
   #header {
-    background: #1a365d; color: #fff;
-    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.15); z-index: 1000; position: sticky; top: 0;
+    background: var(--navy); color: #fff;
+    padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    border-bottom: 2px solid rgba(2,132,199,.35);
+    z-index: 1000; position: sticky; top: 0;
     flex-wrap: wrap;
   }
-  #header h1 { font-size: 1.3rem; font-weight: 700; }
+  #header h1 { font-family: var(--font-heading); font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; }
   #header .spacer { flex: 1; }
   #header a.nav-link {
-    color: #cbd5e0; text-decoration: none; font-weight: 600; font-size: .9rem; white-space: nowrap;
+    color: #94a3b8; text-decoration: none; font-weight: 600; font-size: 1.05rem;
+    white-space: nowrap; transition: color .2s;
   }
-  #header a.nav-link:hover { color: #fff; text-decoration: underline; }
-  #header a.nav-link.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 2px; }
-  .nav-links { display: flex; gap: 12px; }
+  #header a.nav-link:hover { color: #fff; }
+  #header a.nav-link.active { color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+  .nav-links { display: flex; gap: 20px; }
 
   /* ── Tabs ─────────────────────────────────────────────────── */
   .tabs {
-    display: flex; gap: 0; background: #fff; border-bottom: 2px solid #e2e8f0;
-    padding: 0 20px; overflow-x: auto; position: sticky; top: 52px; z-index: 999;
+    display: flex; gap: 0; background: var(--card); border-bottom: 2px solid var(--border);
+    padding: 0 20px; overflow-x: auto; position: sticky; top: 54px; z-index: 999;
   }
   .tab {
-    padding: 12px 20px; font-size: .85rem; font-weight: 600; color: #718096;
+    padding: 13px 22px; font-size: .85rem; font-weight: 600; color: var(--text-secondary);
     cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap;
-    transition: color .15s, border-color .15s;
+    transition: color .2s, border-color .2s, background .2s;
   }
-  .tab:hover { color: #2d3748; }
-  .tab.active { color: #1a365d; border-bottom-color: #1a365d; }
+  .tab:hover { color: var(--text); background: #f0f7ff; }
+  .tab.active { color: var(--navy); border-bottom-color: var(--accent); }
 
   /* ── Content area ────────────────────────────────────────── */
-  .content { max-width: 1200px; margin: 0 auto; padding: 20px; overflow-x: hidden; }
+  .content { max-width: 1200px; margin: 0 auto; padding: 24px 20px; overflow-x: hidden; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
@@ -49,101 +73,118 @@
     gap: 16px; margin-bottom: 24px;
   }
   .stat-card {
-    background: #fff; border-radius: 8px; padding: 20px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center;
+    background: var(--card); border-radius: var(--radius); padding: 20px;
+    box-shadow: var(--shadow-sm); text-align: center;
+    border: 1px solid var(--border-light);
+    transition: box-shadow .2s, border-color .2s;
   }
-  .stat-card .number { font-size: 2rem; font-weight: 800; color: #1a365d; }
-  .stat-card .label { font-size: .75rem; color: #718096; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  .stat-card:hover {
+    box-shadow: var(--shadow-md); border-color: var(--accent-light);
+  }
+  .stat-card .number { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; color: var(--navy); }
+  .stat-card .label { font-size: .75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
 
   /* ── Tables ──────────────────────────────────────────────── */
-  .table-wrap { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+  .table-wrap { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow-x: auto; border: 1px solid var(--border-light); }
   table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   thead th {
-    background: #f7fafc; padding: 10px 14px; text-align: left;
-    font-size: .75rem; text-transform: uppercase; letter-spacing: .5px;
-    color: #718096; border-bottom: 2px solid #e2e8f0;
+    background: var(--border-light); padding: 11px 14px; text-align: left;
+    font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--text-secondary); border-bottom: 2px solid var(--border);
     cursor: pointer; white-space: nowrap; user-select: none;
+    transition: color .15s;
   }
-  thead th:hover { color: #2d3748; }
-  tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
-  tbody tr:hover { background: #f7fafc; }
-  tbody tr { cursor: default; }
+  thead th:hover { color: var(--text); }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border-light); }
+  tbody tr { cursor: default; transition: background .15s; }
+  tbody tr:hover { background: #f0f7ff; }
 
   /* Bar visualisation in cells */
   .bar-cell { position: relative; min-width: 120px; }
   .bar-bg {
     position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-    height: 20px; border-radius: 3px; opacity: .15;
+    height: 20px; border-radius: 4px; opacity: .15;
   }
   .bar-value { position: relative; z-index: 1; font-weight: 600; }
 
   /* ── Filter bar ──────────────────────────────────────────── */
   .filter-bar {
     display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
-    margin-bottom: 16px; padding: 16px; background: #fff;
-    border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    margin-bottom: 16px; padding: 16px; background: var(--card);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
   }
   .filter-group { display: flex; flex-direction: column; gap: 3px; }
-  .filter-group label { font-size: .7rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .3px; }
+  .filter-group label { font-size: .7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .3px; }
   .filter-group input, .filter-group select {
-    padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 5px;
-    font-size: .82rem; background: #fff; color: #2d3748;
+    padding: 7px 11px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: .82rem; font-family: var(--font-body); background: var(--card); color: var(--text);
+    transition: border-color .2s, box-shadow .2s;
   }
-  .filter-group input:focus, .filter-group select:focus { outline: none; border-color: #1a365d; }
-  .filter-group input[type="checkbox"] { width: 16px; height: 16px; margin: 4px 0; }
+  .filter-group input:focus, .filter-group select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(2,132,199,.1);
+  }
+  .filter-group input[type="checkbox"] { width: 16px; height: 16px; margin: 4px 0; accent-color: var(--accent); }
 
   .btn {
-    padding: 7px 16px; border: none; border-radius: 5px; font-size: .82rem;
-    font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s;
+    padding: 8px 18px; border: none; border-radius: 6px; font-size: .82rem;
+    font-family: var(--font-body); font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: all .2s ease;
   }
-  .btn-primary { background: #1a365d; color: #fff; }
-  .btn-primary:hover { background: #2c5282; }
-  .btn-secondary { background: #e2e8f0; color: #4a5568; }
-  .btn-secondary:hover { background: #cbd5e0; }
-  .btn-csv { background: #38a169; color: #fff; }
-  .btn-csv:hover { background: #2f855a; }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: #163b5e; box-shadow: 0 2px 8px rgba(15,43,70,.25); }
+  .btn-secondary { background: var(--border); color: #475569; }
+  .btn-secondary:hover { background: #cbd5e1; }
+  .btn-csv { background: #059669; color: #fff; }
+  .btn-csv:hover { background: #047857; box-shadow: 0 2px 8px rgba(5,150,105,.25); }
 
   /* ── Pagination ──────────────────────────────────────────── */
   .pagination {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 0; font-size: .82rem; color: #718096;
+    padding: 12px 0; font-size: .82rem; color: var(--text-secondary);
   }
   .pagination .page-btns { display: flex; gap: 6px; }
 
   /* ── Loading / empty states ──────────────────────────────── */
-  .loading-msg { text-align: center; padding: 40px; color: #718096; font-size: .9rem; }
-  .empty-msg { text-align: center; padding: 40px; color: #a0aec0; font-size: .9rem; font-style: italic; }
+  .loading-msg { text-align: center; padding: 40px; color: var(--text-secondary); font-size: .9rem; }
+  .empty-msg { text-align: center; padding: 40px; color: #94a3b8; font-size: .9rem; font-style: italic; }
 
-  /* ── Badges (reuse swim map palette) ─────────────────────── */
+  /* ── Badges ──────────────────────────────────────────────── */
   .badge {
-    display: inline-block; font-size: .65rem; padding: 1px 6px;
-    border-radius: 3px; font-weight: 600;
+    display: inline-block; font-size: .65rem; padding: 2px 7px;
+    border-radius: 4px; font-weight: 600; letter-spacing: .02em;
   }
-  .badge-green { background: #c6f6d5; color: #276749; }
-  .badge-amber { background: #fefcbf; color: #975a16; }
-  .badge-red   { background: #fed7d7; color: #9b2c2c; }
-  .badge-grey  { background: #e2e8f0; color: #4a5568; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-amber { background: #fef9c3; color: #854d0e; }
+  .badge-red   { background: #fee2e2; color: #991b1b; }
+  .badge-grey  { background: var(--border); color: #475569; }
 
   /* ── Detail overlay ──────────────────────────────────────── */
   .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    position: fixed; inset: 0; background: rgba(15,43,70,.5);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
     display: none; align-items: center; justify-content: center; z-index: 2000;
   }
   .overlay.visible { display: flex; }
   .overlay-card {
-    background: rgba(255,255,255,0.98); width: min(720px, 94vw);
+    background: var(--card); width: min(720px, 94vw);
     max-height: 90vh; overflow-y: auto;
-    border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    border-radius: 12px; box-shadow: 0 8px 40px rgba(15,43,70,.3);
   }
-  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; }
-  .overlay-title { font-size: 1.1rem; font-weight: 800; color: #1a365d; }
-  .overlay-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #4a5568; }
-  .overlay-body { padding: 16px 18px; }
+  .overlay-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .overlay-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 800; color: var(--navy); }
+  .overlay-close {
+    background: none; border: none; font-size: 1.5rem; cursor: pointer;
+    color: var(--text-secondary); transition: color .15s;
+  }
+  .overlay-close:hover { color: var(--text); }
+  .overlay-body { padding: 18px 20px; }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; font-size: .85rem; margin-bottom: 16px; }
-  .detail-grid dt { color: #718096; font-weight: 600; }
-  .detail-grid dd { color: #2d3748; }
+  .detail-grid dt { color: var(--text-secondary); font-weight: 600; }
+  .detail-grid dd { color: var(--text); }
   .detail-sub { margin-top: 16px; }
-  .detail-sub h4 { font-size: .78rem; text-transform: uppercase; letter-spacing: .4px; color: #718096; margin-bottom: 8px; }
+  .detail-sub h4 { font-size: .78rem; text-transform: uppercase; letter-spacing: .4px; color: var(--text-secondary); margin-bottom: 8px; }
 
   /* ── Responsive ──────────────────────────────────────────── */
   @media (max-width: 640px) {
@@ -163,7 +204,7 @@
 <body>
 
 <div id="header">
-  <h1><a href="/" style="color:#fff;text-decoration:none">🏊 Can I Swim Here?</a> <span style="font-weight:400;color:#cbd5e0">— Data Explorer</span></h1>
+  <h1><a href="/" style="color:#fff;text-decoration:none">🏊 Can I Swim Here?</a> <span style="font-weight:400;color:#94a3b8">— Data Explorer</span></h1>
   <span class="spacer"></span>
   <div class="nav-links">
     <a href="/" class="nav-link">Swim Map</a>
@@ -186,16 +227,16 @@
   <div id="tab-overview" class="tab-panel active">
     <div class="loading-msg" id="overview-loading">Loading national overview…</div>
     <div id="overview-content" style="display:none">
-      <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px;line-height:1.6;font-size:.9rem;color:#2d3748">
-        <p style="margin:0 0 10px">Welcome to the <strong>Can I Swim Here? Data Explorer</strong> — a research tool for journalists, campaigners, and anyone who wants to dig into sewage overflow data across England, Wales and Scotland.</p>
-        <p style="margin:0 0 10px">This dashboard combines <strong>near-real-time storm overflow monitoring</strong> with historical spill data from official sources. Live discharge status is pulled from water company feeds throughout the day, so you can see which overflows are actively discharging <em>right now</em> via the <a href="/" style="color:#3182ce">Swim Map</a>. Alongside the live data, we draw on open datasets from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, annual spill counts, and bathing water classifications.</p>
-        <p style="margin:0 0 10px">Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
-        <p id="overview-last-updated" style="margin:0 0 10px;color:#718096;font-size:.85rem">Live discharge snapshot: loading…</p>
+      <div style="background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-bottom:20px;line-height:1.7;font-size:.9rem;color:var(--text)">
+        <p style="margin:0 0 12px">Welcome to the <strong>Can I Swim Here? Data Explorer</strong> — a research tool for journalists, campaigners, and anyone who wants to dig into sewage overflow data across England, Wales and Scotland.</p>
+        <p style="margin:0 0 12px">This dashboard combines <strong>near-real-time storm overflow monitoring</strong> with historical spill data from official sources. Live discharge status is pulled from water company feeds throughout the day, so you can see which overflows are actively discharging <em>right now</em> via the <a href="/" style="color:var(--accent)">Swim Map</a>. Alongside the live data, we draw on open datasets from the <strong>Environment Agency</strong>, <strong>Natural Resources Wales</strong>, <strong>SEPA</strong>, and <strong>Scottish Water</strong> covering <strong>18,000+ storm overflows</strong>, annual spill counts, and bathing water classifications.</p>
+        <p style="margin:0 0 12px">Use the tabs above to explore company rankings, search individual overflows, identify the most polluted rivers, or find which bathing waters face the greatest overflow threat.</p>
+        <p id="overview-last-updated" style="margin:0 0 10px;color:var(--text-secondary);font-size:.85rem">Live discharge snapshot: loading…</p>
         <p style="margin:0 0 10px;font-size:.85rem"><strong>Why do spill counts show 2024?</strong> Annual spill counts and durations come from the Environment Agency's Event Duration Monitoring (EDM) annual return, which water companies are required to publish once a year. The most recent dataset covers the <strong>2024 reporting year</strong> (January–December 2024), published in spring 2025. The 2025 return is expected in spring 2026 — we will update the site as soon as it becomes available. <strong>Live overflow discharge status is monitored and updated in near-real-time throughout the year</strong> and is not affected by this annual cycle.</p>
-        <p style="margin:0;color:#718096;font-size:.82rem">All data can be downloaded as CSV for your own analysis. For programmatic access, see the <a href="/docs" style="color:#3182ce">API documentation</a>.</p>
+        <p style="margin:0;color:var(--text-secondary);font-size:.82rem">All data can be downloaded as CSV for your own analysis. For programmatic access, see the <a href="/docs" style="color:var(--accent)">API documentation</a>.</p>
       </div>
       <div class="stat-cards" id="overview-stats"></div>
-      <h3 style="margin-bottom:12px;color:#1a365d;font-size:.95rem">Breakdown by Water Company</h3>
+      <h3 style="margin-bottom:12px;color:var(--navy);font-size:.95rem;font-family:var(--font-heading)">Breakdown by Water Company</h3>
       <div class="table-wrap">
         <table id="overview-table">
           <thead>
@@ -210,13 +251,13 @@
           <tbody></tbody>
         </table>
       </div>
-      <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-top:20px;line-height:1.6;font-size:.9rem;color:#2d3748">
-        <p style="margin:0 0 10px;font-weight:700;color:#1a365d">Support This Project</p>
+      <div style="background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-top:20px;line-height:1.7;font-size:.9rem;color:var(--text)">
+        <p style="margin:0 0 10px;font-weight:700;color:var(--navy);font-family:var(--font-heading)">Support This Project</p>
         <p style="margin:0 0 10px">Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
         <p style="margin:0 0 10px"><a href="https://buymeacoffee.com/caniswimhere" target="_blank" rel="noopener" style="display:inline-block;background:#ffdd00;color:#000;font-weight:700;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:.9rem">☕ Buy Me a Coffee</a></p>
-        <p style="margin:0 0 10px;color:#718096;font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:#3182ce">caniswimhere@proton.me</a></p>
-        <p style="margin:0;font-size:.85rem"><strong style="color:#1a365d">Follow us:</strong> <a href="https://bsky.app/profile/caniswimhere.bsky.social" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">🦋 Bluesky</a> &nbsp;&middot;&nbsp; <a href="https://x.com/caniswimhere" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;font-weight:600">&#x1D54F; X</a></p>
-        <p style="margin:10px 0 0;color:#718096;font-size:.82rem"><strong style="color:#4a5568">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
+        <p style="margin:0 0 10px;color:var(--text-secondary);font-size:.82rem">Questions, feedback or data requests? Get in touch: <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a></p>
+        <p style="margin:0;font-size:.85rem"><strong style="color:var(--navy)">Follow us:</strong> <a href="https://bsky.app/profile/caniswimhere.bsky.social" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">🦋 Bluesky</a> &nbsp;&middot;&nbsp; <a href="https://x.com/caniswimhere" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">&#x1D54F; X</a></p>
+        <p style="margin:10px 0 0;color:var(--text-secondary);font-size:.82rem"><strong style="color:#475569">Methodology & Corrections.</strong> Live discharge status comes from company feeds via the National Storm Overflow Hub and updates throughout the day; annual spill counts come from the 2024 EDM return. If you spot an error, email us — substantive corrections will be made promptly and noted.</p>
       </div>
     </div>
   </div>
@@ -225,7 +266,7 @@
   <div id="tab-companies" class="tab-panel">
     <div class="loading-msg" id="companies-loading">Loading company data…</div>
     <div id="companies-content" style="display:none">
-      <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">How do the UK's water companies compare on sewage spills? This leaderboard ranks companies by total spills reported in the 2024 EDM annual return. The <strong>EDM Uptime %</strong> column shows average monitor reliability — lower uptime means more spills may have gone unrecorded.</p>
+      <p style="color:var(--text-secondary);font-size:.88rem;line-height:1.5;margin-bottom:14px">How do the UK's water companies compare on sewage spills? This leaderboard ranks companies by total spills reported in the 2024 EDM annual return. The <strong>EDM Uptime %</strong> column shows average monitor reliability — lower uptime means more spills may have gone unrecorded.</p>
       <div class="table-wrap">
         <table id="companies-table">
           <thead>
@@ -247,7 +288,7 @@
 
   <!-- ════ OVERFLOWS TAB ══════════════════════════════════════ -->
   <div id="tab-overflows" class="tab-panel">
-    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Search and filter all 18,000+ storm overflows across England, Wales and Scotland. Narrow by water company, spill count, receiving water, or proximity to a bathing water. Click any row for full permit details and annual return data. Use the CSV button to download your current filtered results.</p>
+    <p style="color:var(--text-secondary);font-size:.88rem;line-height:1.5;margin-bottom:14px">Search and filter all 18,000+ storm overflows across England, Wales and Scotland. Narrow by water company, spill count, receiving water, or proximity to a bathing water. Click any row for full permit details and annual return data. Use the CSV button to download your current filtered results.</p>
     <div class="filter-bar">
       <div class="filter-group">
         <label>Site name</label>
@@ -308,7 +349,7 @@
 
   <!-- ════ RIVERS & SEAS TAB ══════════════════════════════════ -->
   <div id="tab-rivers" class="tab-panel">
-    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Which rivers, estuaries, and coastal waters receive the most sewage overflow discharges? This table ranks receiving waters by total spills from all overflows that discharge into them. A single river may receive discharges from multiple water companies.</p>
+    <p style="color:var(--text-secondary);font-size:.88rem;line-height:1.5;margin-bottom:14px">Which rivers, estuaries, and coastal waters receive the most sewage overflow discharges? This table ranks receiving waters by total spills from all overflows that discharge into them. A single river may receive discharges from multiple water companies.</p>
     <div class="filter-bar">
       <div class="filter-group">
         <label>River / Sea</label>
@@ -351,7 +392,7 @@
 
   <!-- ════ BATHING IMPACT TAB ═════════════════════════════════ -->
   <div id="tab-bathing" class="tab-panel">
-    <p style="color:#4a5568;font-size:.88rem;line-height:1.5;margin-bottom:14px">Which designated bathing waters are most threatened by nearby storm overflows? This view cross-references every bathing water across England, Wales and Scotland with overflow locations within a given radius, counting the total spills from all nearby outfalls. Distances are straight-line — actual waterway paths may differ.</p>
+    <p style="color:var(--text-secondary);font-size:.88rem;line-height:1.5;margin-bottom:14px">Which designated bathing waters are most threatened by nearby storm overflows? This view cross-references every bathing water across England, Wales and Scotland with overflow locations within a given radius, counting the total spills from all nearby outfalls. Distances are straight-line — actual waterway paths may differ.</p>
     <div class="filter-bar">
       <div class="filter-group">
         <label>Bathing water</label>
