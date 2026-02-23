@@ -773,9 +773,16 @@ function closePanel() {
   document.getElementById('panel').classList.remove('visible');
 }
 
-function navigateToPoint(lat, lon) {
+function navigateToPoint(lat, lon, name) {
   map.flyTo([lat, lon], 14, { duration: 1 });
-  map.fire('click', { latlng: L.latLng(lat, lon) });
+  // Place a marker at the target
+  if (clickMarker) map.removeLayer(clickMarker);
+  clickMarker = L.circleMarker([lat, lon], {
+    radius: 6, color: '#1a365d', fillColor: '#1a365d',
+    fillOpacity: 1, weight: 2,
+  }).addTo(map);
+  // Go straight to detail view for this location
+  fetchDetail(lat, lon, name || null, 'Storm Overflow');
 }
 
 // Click delegation for navigable cards in the detail panel
@@ -784,7 +791,8 @@ document.getElementById('panel-body').addEventListener('click', function(e) {
   if (!card) return;
   var lat = parseFloat(card.dataset.navLat);
   var lon = parseFloat(card.dataset.navLon);
-  if (lat && lon) navigateToPoint(lat, lon);
+  var name = card.dataset.navName || null;
+  if (lat && lon) navigateToPoint(lat, lon, name);
 });
 
 function formatDist(m) {
@@ -961,7 +969,7 @@ function showDetail(data) {
           else if (o.last_spill_hours_ago < 168) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 24) + ' days ago';
           else lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 168) + ' weeks ago';
         }
-        var navData = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '"' : '';
+        var navData = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '" data-nav-name="' + (o.receiving_water || o.id || 'Overflow').replace(/"/g, '&quot;') + '"' : '';
         return '<div class="live-card ' + cardClass + '"' + navData + ' style="cursor:pointer">' +
           '<div style="display:flex;justify-content:space-between;align-items:center">' +
             '<span style="font-weight:600">' + (o.receiving_water || o.id || 'Overflow') + '</span>' +
@@ -997,7 +1005,7 @@ function showDetail(data) {
         </div>
       </div>
       ${(data.overflow_threat && data.overflow_threat.worst_overflows || []).slice(0, 3).map(function(o){
-        var nav = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '"' : '';
+        var nav = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '" data-nav-name="' + (o.name || 'Overflow').replace(/"/g, '&quot;') + '"' : '';
         return '<div class="overflow-card"' + nav + ' style="margin-top:8px;cursor:pointer">' +
           '<div class="oc-name">' + (o.name || 'Unnamed overflow') +
             (nav ? ' <span style="color:var(--accent);font-weight:600;font-size:.75rem" title="Explore this location">↗</span>' : '') +
