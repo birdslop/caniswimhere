@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from api.db import pool
-from api.routes import nearby, readings, detail, research, overview
+from api.routes import nearby, readings, detail, research
 
 # Optional password gate — set SITE_PASSWORD env var to enable.
 _SITE_PASSWORD = os.getenv("SITE_PASSWORD")
@@ -173,7 +173,6 @@ app.add_middleware(
 # TTLs tuned per endpoint type: live data short, annual data long.
 _CACHE_RULES = [
     # (path_prefix, Cache-Control value)
-    ("/api/overview",           "public, max-age=3600"),
     ("/api/site/detail",       "public, max-age=120, stale-while-revalidate=60"),
     ("/api/nearby",            "public, max-age=300, stale-while-revalidate=120"),
     ("/api/readings/",         "public, max-age=120, stale-while-revalidate=60"),
@@ -225,7 +224,6 @@ app.include_router(nearby.router, prefix="/api")
 app.include_router(readings.router, prefix="/api")
 app.include_router(detail.router, prefix="/api")
 app.include_router(research.router, prefix="/api")
-app.include_router(overview.router, prefix="/api")
 
 
 @app.get("/api/health")
