@@ -369,7 +369,7 @@
         </li>
       <li>
           <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#e53e3e" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">⚠</text></svg>
-          <span><strong>Storm Overflow</strong> — Combined sewer overflows. Shows <strong>live discharge status</strong> (near-real-time) and 2024 annual spill counts.</span>
+          <span><strong>Storm Overflow</strong> — Combined sewer overflows. Shows <strong>live discharge status</strong> (near-real-time) and 2024 annual spill counts. Note: EDM monitors detect overflow activation — they do not measure volume or confirm that untreated sewage reached the watercourse. False activations can occur.</span>
         </li>
         <li>
           <svg width="26" height="26" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#805ad5" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">💧</text></svg>
@@ -410,8 +410,8 @@
       <p>All data comes from official, publicly available sources across England, Wales and Scotland:</p>
       <ul class="source-list">
         <li><span class="source-tag">WIMS</span> <span>Environment Agency Water Information Management System — laboratory-tested water quality samples including E. coli and Enterococci levels (England).</span></li>
-        <li><span class="source-tag">EDM</span> <span>Event Duration Monitoring — 2024 annual return with storm overflow spill counts and durations for England and Wales (Environment Agency / Natural Resources Wales).</span></li>
-        <li><span class="source-tag">NSOH</span> <span>National Storm Overflow Hub — near-real-time discharge status from all nine English water companies and Scottish Water. Shows whether overflows are actively discharging right now. Note: D&#x175;r Cymru Welsh Water does not publish its live feed through a public data service, so real-time status is not available for Welsh overflows.</span></li>
+        <li><span class="source-tag">EDM</span> <span>Event Duration Monitoring — 2024 annual return with storm overflow spill counts and durations for England and Wales (Environment Agency / Natural Resources Wales). EDM monitors detect when an overflow activates — they do not measure the volume of discharge or confirm that untreated sewage entered the watercourse. Some activations may be false positives caused by sensor faults, and monitors that were offline during part of the year may undercount spills.</span></li>
+        <li><span class="source-tag">NSOH</span> <span>National Storm Overflow Hub — near-real-time discharge status from all nine English water companies and Scottish Water. "Discharging" means the monitor has detected overflow activation; it does not confirm volume, composition, or environmental impact. False activations are possible. Note: D&#x175;r Cymru Welsh Water does not publish its live feed through a public data service, so real-time status is not available for Welsh overflows.</span></li>
         <li><span class="source-tag">SEPA</span> <span>Scottish Environment Protection Agency — bathing water classifications for Scotland.</span></li>
         <li><span class="source-tag">NRW</span> <span>Natural Resources Wales — Welsh bathing water sites and compliance classifications.</span></li>
         <li><span class="source-tag">EA Flood</span> <span>Environment Agency Flood Monitoring — real-time rainfall and river level data from gauge stations across England.</span></li>
@@ -428,7 +428,7 @@
       <p>This project is built on open government data from multiple UK regulators and water companies. Contains Environment Agency information &copy; Environment Agency and database right. Includes data from Natural Resources Wales and the Scottish Environment Protection Agency. Uses Ordnance Survey and OpenStreetMap data where applicable.</p>
 
       <h3>Methodology & Corrections</h3>
-      <p>Live discharge status is collected via the National Storm Overflow Hub and updates throughout the day. Annual spill counts come from the 2024 Event Duration Monitoring (EDM) return. If you spot an error, please email <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a>. Substantive corrections will be made promptly and noted transparently.</p>
+      <p>Live discharge status is collected via the National Storm Overflow Hub and updates throughout the day. A "Discharging" status means the EDM monitor has detected overflow activation — it does not measure volume, confirm that untreated sewage reached the watercourse, or indicate environmental impact. False activations can occur due to sensor faults. Annual spill counts come from the 2024 Event Duration Monitoring (EDM) return; monitors that were offline for part of the year may undercount events (see the <em>edm_operational_pct</em> field in the API). If you spot an error, please email <a href="mailto:caniswimhere@proton.me" style="color:var(--accent)">caniswimhere@proton.me</a>. Substantive corrections will be made promptly and noted transparently.</p>
 
       <h3>Support This Project</h3>
       <p>Can I Swim Here? is an entirely self-funded project. Any donations help to continue the project by paying for things like hosting, maintenance and the ability to update the site. Any help is most welcome and warmly received, thank you!</p>
@@ -847,10 +847,15 @@ function showDetail(data) {
   const sp = data.nearest_sampling_point;
   const readings = data.water_quality?.readings || [];
   const freshness = data.water_quality?.freshness || {};
+  const staleWarnStyle = 'background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16';
   const staleWarning = freshness.status === 'very_stale'
-    ? `<div style="background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16">⚠️ Data is ${Math.round(freshness.age_days / 365)} years old — may not reflect current conditions.</div>`
+    ? (freshness.age_days > 365
+      ? `<div style="${staleWarnStyle}">⚠️ Data is ${Math.round(freshness.age_days / 365)} years old — may not reflect current conditions.</div>`
+      : `<div style="${staleWarnStyle}">⚠️ Data is ~${Math.round(freshness.age_days / 30)} months old — treat with caution.</div>`)
     : freshness.status === 'stale'
-    ? `<div style="background:#fefcbf;border-left:3px solid #d69e2e;padding:8px 12px;margin-bottom:8px;border-radius:4px;font-size:.78rem;color:#975a16">⚠️ Data is ~${Math.round(freshness.age_days / 30)} months old.</div>`
+    ? (freshness.in_season === false
+      ? `<div style="${staleWarnStyle}">⚠️ Outside bathing season — data is ~${Math.round(freshness.age_days / 7)} weeks old; no active monitoring programme.</div>`
+      : `<div style="${staleWarnStyle}">⚠️ Data is ~${Math.round(freshness.age_days / 30)} months old.</div>`)
     : '';
   // Build a summary note for water quality if all readings are good
   const allExcellent = readings.length > 0 && readings.every(r => { const a = assessReading(r.determinand, r.value); return a && (a.label === 'Excellent' || a.label === 'Good'); });
@@ -883,36 +888,51 @@ function showDetail(data) {
 
   // ── Live Overflow Status (NSOH near-real-time) ──────────
   var liveOvs = data.live_overflows || [];
-  if (liveOvs.length > 0) {
-    var activeCount = liveOvs.filter(function(o){ return o.status_code === 1; }).length;
-    var statusTag = activeCount > 0
-      ? '<span class="live-tag live-tag-red"><span class="pulse-dot pulse-dot-red"></span> ' + activeCount + ' discharging now</span>'
-      : '<span class="live-tag live-tag-green"><span class="pulse-dot pulse-dot-green"></span> None discharging</span>';
-    body.innerHTML += '<div class="detail-section"><h3><span class="sec-icon">⚠️</span> Live Overflow Status <span class="sec-sub">near-real-time</span></h3>' + statusTag;
-    body.innerHTML += liveOvs.slice(0, 5).map(function(o){
-      var cardClass = o.status_code === 1 ? 'live-card-active' : (o.last_spill_hours_ago != null && o.last_spill_hours_ago <= 24 ? 'live-card-recent' : 'live-card-ok');
-      var statusBit = o.status_code === 1
-        ? '<span class="live-tag live-tag-red" style="font-size:.6rem"><span class="pulse-dot pulse-dot-red"></span> Discharging</span>'
-        : o.status_code === -1
-        ? '<span class="live-tag live-tag-grey" style="font-size:.6rem">Offline</span>'
-        : '<span class="live-tag live-tag-green" style="font-size:.6rem">Stopped</span>';
-      var lastSpill = '';
-      if (o.last_spill_hours_ago != null) {
-        if (o.last_spill_hours_ago < 1) lastSpill = 'Last spill: <1 hr ago';
-        else if (o.last_spill_hours_ago < 24) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago) + ' hrs ago';
-        else if (o.last_spill_hours_ago < 168) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 24) + ' days ago';
-        else lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 168) + ' weeks ago';
-      }
-      return '<div class="live-card ' + cardClass + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center">' +
-          '<span style="font-weight:600">' + (o.receiving_water || o.id || 'Overflow') + '</span>' +
-          statusBit +
-        '</div>' +
-        '<div style="font-size:.72rem;color:#718096;margin-top:2px">' +
-          (o.company || '') + ' · ' + formatDist(o.distance_m) + ' away' +
-          (lastSpill ? ' · ' + lastSpill : '') +
-        '</div></div>';
-    }).join('');
+  var liveStatus = data.live_overflow_status || (liveOvs.length > 0 ? 'ok' : 'unavailable');
+  {
+    var statusTag;
+    var edmCaveat = '<div style="font-size:.72rem;color:#718096;margin:6px 0 2px;line-height:1.5">EDM monitors detect overflow activation — they do not measure volume or confirm that untreated sewage reached the watercourse. False activations can occur.</div>';
+    if (liveStatus === 'not_covered') {
+      statusTag = '<span class="live-tag live-tag-grey">Not available for this area</span>';
+      edmCaveat = '<div style="font-size:.72rem;color:#718096;margin:6px 0 2px;line-height:1.5">D\u0175r Cymru Welsh Water does not publish live overflow data through an open feed. Annual spill data from the 2024 EDM return is still shown below.</div>';
+    } else if (liveStatus === 'unavailable') {
+      statusTag = '<span class="live-tag live-tag-grey">Temporarily unavailable</span>';
+      edmCaveat = '<div style="font-size:.72rem;color:#718096;margin:6px 0 2px;line-height:1.5">Live overflow monitoring data could not be retrieved. This may be a temporary issue with upstream feeds.</div>';
+    } else if (liveOvs.length === 0) {
+      statusTag = '<span class="live-tag live-tag-green"><span class="pulse-dot pulse-dot-green"></span> No storm overflows monitored nearby</span>';
+    } else {
+      var activeCount = liveOvs.filter(function(o){ return o.status_code === 1; }).length;
+      statusTag = activeCount > 0
+        ? '<span class="live-tag live-tag-red"><span class="pulse-dot pulse-dot-red"></span> ' + activeCount + ' discharging now</span>'
+        : '<span class="live-tag live-tag-green"><span class="pulse-dot pulse-dot-green"></span> None discharging</span>';
+    }
+    body.innerHTML += '<div class="detail-section"><h3><span class="sec-icon">⚠️</span> Live Overflow Status <span class="sec-sub">near-real-time</span></h3>' + statusTag + edmCaveat;
+    if (liveOvs.length > 0) {
+      body.innerHTML += liveOvs.slice(0, 5).map(function(o){
+        var cardClass = o.status_code === 1 ? 'live-card-active' : (o.last_spill_hours_ago != null && o.last_spill_hours_ago <= 24 ? 'live-card-recent' : 'live-card-ok');
+        var statusBit = o.status_code === 1
+          ? '<span class="live-tag live-tag-red" style="font-size:.6rem"><span class="pulse-dot pulse-dot-red"></span> Discharging</span>'
+          : o.status_code === -1
+          ? '<span class="live-tag live-tag-grey" style="font-size:.6rem">Offline</span>'
+          : '<span class="live-tag live-tag-green" style="font-size:.6rem">Stopped</span>';
+        var lastSpill = '';
+        if (o.last_spill_hours_ago != null) {
+          if (o.last_spill_hours_ago < 1) lastSpill = 'Last spill: <1 hr ago';
+          else if (o.last_spill_hours_ago < 24) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago) + ' hrs ago';
+          else if (o.last_spill_hours_ago < 168) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 24) + ' days ago';
+          else lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 168) + ' weeks ago';
+        }
+        return '<div class="live-card ' + cardClass + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-weight:600">' + (o.receiving_water || o.id || 'Overflow') + '</span>' +
+            statusBit +
+          '</div>' +
+          '<div style="font-size:.72rem;color:#718096;margin-top:2px">' +
+            (o.company || '') + ' · ' + formatDist(o.distance_m) + ' away' +
+            (lastSpill ? ' · ' + lastSpill : '') +
+          '</div></div>';
+      }).join('');
+    }
     body.innerHTML += '</div>';
   }
 

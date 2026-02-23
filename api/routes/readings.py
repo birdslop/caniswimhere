@@ -7,7 +7,7 @@ Nothing is stored; all data is proxied and returned.
 import httpx
 from fastapi import APIRouter, Query, HTTPException
 
-router = APIRouter()
+router = APIRouter(tags=["Swim Map"])
 
 EA_TIMEOUT = 15.0
 

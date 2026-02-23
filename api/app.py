@@ -144,6 +144,13 @@ app = FastAPI(
     docs_url=None,  # we serve a custom docs page with site header
     openapi_tags=[
         {
+            "name": "Swim Map",
+            "description": (
+                "Powers the interactive map. Returns nearby features, live verdicts, "
+                "water quality readings, and detailed safety assessments for any location."
+            ),
+        },
+        {
             "name": "Research",
             "description": (
                 "Bulk query, ranking, and export endpoints for journalists, "
@@ -160,6 +167,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Cache-Control for API responses ────────────────────────────
+# TTLs tuned per endpoint type: live data short, annual data long.
+_CACHE_RULES = [
+    # (path_prefix, Cache-Control value)
+    ("/api/site/detail",       "public, max-age=120, stale-while-revalidate=60"),
+    ("/api/nearby",            "public, max-age=300, stale-while-revalidate=120"),
+    ("/api/readings/",         "public, max-age=120, stale-while-revalidate=60"),
+    ("/api/research/live-summary", "public, max-age=60, stale-while-revalidate=30"),
+    ("/api/research/",         "public, max-age=3600"),
+    ("/api/health",            "no-cache"),
+]
+
+
+@app.middleware("http")
+async def cache_headers(request: Request, call_next):
+    """Attach Cache-Control to API responses that don't already have one."""
+    response = await call_next(request)
+    path = request.url.path
+    if "cache-control" not in response.headers:
+        for prefix, value in _CACHE_RULES:
+            if path.startswith(prefix):
+                response.headers["Cache-Control"] = value
+                break
+    return response
 
 
 @app.middleware("http")
@@ -202,8 +235,20 @@ def health():
 app.mount("/static", StaticFiles(directory=str(_FRONTEND)), name="static")
 
 
-# Robots and favicon
+# security.txt (RFC 9116)
 from fastapi.responses import PlainTextResponse
+
+@app.get("/.well-known/security.txt", include_in_schema=False)
+def security_txt():
+    return PlainTextResponse(
+        "Contact: mailto:caniswimhere@proton.me\n"
+        "Expires: 2026-12-31T23:59:59z\n"
+        "Preferred-Languages: en\n",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+# Robots and favicon
 
 @app.get("/robots.txt", include_in_schema=False)
 def robots_txt():

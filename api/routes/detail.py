@@ -21,7 +21,7 @@ from api.routes.research import _normalise_duration
 
 log = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["Swim Map"])
 
 # ── Key WIMS determinand codes for swim safety ────────────────
 # Multiple codes map to the same logical determinand (different lab methods).
@@ -72,8 +72,11 @@ EA_JSON_HEADERS = {"Accept": "application/json"}
 # ── NSOH config (shared with polling scripts) ────────────────
 from api.nsoh_config import NSOH_DEFAULT_FIELDS as _NSOH_DEFAULT_FIELDS, NSOH_ENDPOINTS
 
-STALE_DAYS = 180          # >6 months = stale
-VERY_STALE_DAYS = 365     # >1 year = very stale
+# Staleness thresholds — season-aware (bathing season = May–September)
+STALE_DAYS_IN_SEASON = 30       # During bathing season, >1 month = stale
+VERY_STALE_DAYS_IN_SEASON = 90  # >3 months = very stale
+STALE_DAYS_OFF_SEASON = 14      # Outside season, >2 weeks = stale (no active monitoring)
+VERY_STALE_DAYS_OFF_SEASON = 60 # >2 months = very stale
 
 
 def _parse_csv_observation(row: dict) -> dict | None:
@@ -136,34 +139,60 @@ def _assess_reading(determinand: str, value: float) -> str:
     return "poor"
 
 
+def _is_bathing_season(d: date | None = None) -> bool:
+    """True if date falls within UK bathing season (May–September)."""
+    return (d or date.today()).month in (5, 6, 7, 8, 9)
+
+
 def _data_freshness(readings: list) -> dict:
-    """Compute freshness metadata from a list of readings."""
+    """Compute freshness metadata from a list of readings (season-aware)."""
     if not readings:
-        return {"status": "no_data", "newest_date": None, "age_days": None}
+        return {"status": "no_data", "newest_date": None, "age_days": None,
+                "in_season": _is_bathing_season()}
     newest = max(r["date"] for r in readings)
     try:
         age = (date.today() - date.fromisoformat(newest)).days
     except ValueError:
-        return {"status": "unknown", "newest_date": newest, "age_days": None}
-    if age > VERY_STALE_DAYS:
+        return {"status": "unknown", "newest_date": newest, "age_days": None,
+                "in_season": _is_bathing_season()}
+    in_season = _is_bathing_season()
+    stale_days = STALE_DAYS_IN_SEASON if in_season else STALE_DAYS_OFF_SEASON
+    very_stale_days = VERY_STALE_DAYS_IN_SEASON if in_season else VERY_STALE_DAYS_OFF_SEASON
+    if age > very_stale_days:
         status = "very_stale"
-    elif age > STALE_DAYS:
+    elif age > stale_days:
         status = "stale"
     else:
         status = "recent"
-    return {"status": status, "newest_date": newest, "age_days": age}
+    return {"status": status, "newest_date": newest, "age_days": age,
+            "in_season": in_season}
 
 
 def _build_verdict(
     readings: list, overflow_summary: dict, freshness: dict,
-    rainfall: dict | None = None, live_overflows: list | None = None,
+    rainfall: dict | None = None, live_overflow_info: dict | None = None,
 ) -> dict:
     """Synthesise a traffic-light verdict from readings + overflow data + rainfall + live status."""
     reasons = []
     level = "green"  # start optimistic
 
     # ── Live overflow status (NSOH near-real-time) ────────────
-    if live_overflows:
+    nsoh_status = (live_overflow_info or {}).get("status", "unavailable")
+    live_overflows = (live_overflow_info or {}).get("overflows", [])
+
+    if nsoh_status in ("unavailable", "not_covered"):
+        level = max(level, "amber", key=["green", "amber", "red"].index)
+        if nsoh_status == "not_covered":
+            reasons.append(
+                "Live overflow monitoring is not available for this area "
+                "(D\u0175r Cymru Welsh Water does not publish an open data feed)."
+            )
+        else:
+            reasons.append(
+                "Live overflow monitoring data temporarily unavailable — "
+                "treat with caution."
+            )
+    elif live_overflows:
         active = [o for o in live_overflows if o.get("status_code") == 1]
         recent_24h = [
             o for o in live_overflows
@@ -212,17 +241,30 @@ def _build_verdict(
 
     # ── Data staleness ────────────────────────────────────────
     fs = freshness.get("status", "no_data")
+    in_season = freshness.get("in_season", False)
     if fs == "very_stale":
         level = max(level, "amber", key=["green", "amber", "red"].index)
-        age_yrs = round(freshness["age_days"] / 365, 1)
-        reasons.append(
-            f"Water quality data is {age_yrs} years old — treat with caution."
-        )
+        age_days = freshness["age_days"]
+        if age_days > 365:
+            reasons.append(
+                f"Water quality data is {round(age_days / 365, 1)} years old — treat with caution."
+            )
+        else:
+            reasons.append(
+                f"Water quality data is ~{round(age_days / 30)} months old — treat with caution."
+            )
     elif fs == "stale":
-        age_months = round((freshness.get("age_days") or 0) / 30)
-        reasons.append(
-            f"Note: newest water quality reading is ~{age_months} months old."
-        )
+        level = max(level, "amber", key=["green", "amber", "red"].index)
+        age_days = freshness.get("age_days") or 0
+        if not in_season:
+            reasons.append(
+                f"Outside bathing season — newest water quality reading is "
+                f"~{round(age_days / 7)} weeks old; no active monitoring programme."
+            )
+        else:
+            reasons.append(
+                f"Note: newest water quality reading is ~{round(age_days / 30)} months old."
+            )
 
     # ── Recent rainfall ───────────────────────────────────────
     if rainfall:
@@ -241,7 +283,7 @@ def _build_verdict(
             )
 
     # ── Water quality readings ────────────────────────────────
-    # Only let readings influence the verdict if they are fresh (<=6 months)
+    # Only let readings influence the verdict if they are fresh
     data_trustworthy = fs == "recent"
     ecoli = [r for r in readings if r["determinand"] == "E. coli"]
     enterococci = [r for r in readings if r["determinand"] == "Enterococci"]
@@ -285,8 +327,8 @@ def _build_verdict(
 
 @router.get("/site/detail")
 async def site_detail(
-    lat: float = Query(..., description="Latitude (WGS84)"),
-    lon: float = Query(..., description="Longitude (WGS84)"),
+    lat: float = Query(..., ge=-90, le=90, description="Latitude (WGS84)"),
+    lon: float = Query(..., ge=-180, le=180, description="Longitude (WGS84)"),
 ):
     """Deep-dive into water quality and safety at a specific location."""
     point = f"ST_SetSRID(ST_MakePoint({lon}, {lat}), 4326)"
@@ -618,15 +660,32 @@ async def site_detail(
             return None
         return rainfall_local
 
-    async def fetch_live_overflows():
-        """Query all NSOH endpoints in parallel for nearby live overflow status."""
+    def _is_in_wales(lt: float, ln: float) -> bool:
+        """Rough heuristic: point is in Wales (no NSOH coverage)."""
+        # Approximate Wales bounding box
+        return 51.3 <= lt <= 53.5 and -5.3 <= ln <= -2.65
+
+    async def fetch_live_overflows() -> dict:
+        """Query all NSOH endpoints in parallel for nearby live overflow status.
+
+        Returns a dict: {status: "ok"|"unavailable"|"not_covered",
+                         overflows: [...], polled_at: "..."}
+        """
+        polled_at = datetime.now(timezone.utc).isoformat()
+
+        # Wales has no public NSOH feed
+        if _is_in_wales(lat, lon):
+            return {"status": "not_covered", "overflows": [], "polled_at": polled_at}
+
         # Build bounding box ~5km around the point
         # ~0.045 degrees latitude ≈ 5km; longitude adjusted for lat
         import math
         dlat = 0.045
         dlon = 0.045 / max(math.cos(math.radians(lat)), 0.5)
         bbox = f"{lon - dlon},{lat - dlat},{lon + dlon},{lat + dlat}"
+
         async def _query_one(company_name: str, endpoint: str, field_map: dict | None = None):
+            """Returns (results_list, success_bool)."""
             fm = field_map or _NSOH_DEFAULT_FIELDS
             out_fields = ",".join(fm.values())
             try:
@@ -642,7 +701,7 @@ async def site_detail(
                 async with httpx.AsyncClient(timeout=NSOH_TIMEOUT) as client:
                     resp = await client.get(endpoint + "/query" + params)
                 if resp.status_code != 200:
-                    return []
+                    return [], False
                 data = resp.json()
                 results = []
                 now_ms = datetime.now(timezone.utc).timestamp() * 1000
@@ -687,28 +746,64 @@ async def site_detail(
                         "lat": flat,
                         "lon": flon,
                     })
-                return results
+                return results, True
             except Exception:
-                return []
+                return [], False
 
         tasks = [_query_one(name, url, fm) for name, url, fm in NSOH_ENDPOINTS]
         all_results = await asyncio.gather(*tasks)
         combined = []
-        for batch in all_results:
+        successes = 0
+        for batch, ok in all_results:
+            if ok:
+                successes += 1
             combined.extend(batch)
         combined.sort(key=lambda x: x["distance_m"])
-        return combined[:15]
 
-    readings, bathing_assessment, rainfall_summary, live_overflows = await asyncio.gather(
+        if successes == 0:
+            return {"status": "unavailable", "overflows": [], "polled_at": polled_at}
+        return {"status": "ok", "overflows": combined[:15], "polled_at": polled_at}
+
+    _fetch_start = datetime.now(timezone.utc)
+    readings, bathing_assessment, rainfall_summary, live_overflow_info = await asyncio.gather(
         fetch_wims(), fetch_bathing(), fetch_rainfall(), fetch_live_overflows()
     )
+    _fetch_end = datetime.now(timezone.utc)
 
     # ── 7. Build verdict ─────────────────────────────────────
     freshness = _data_freshness(readings)
     verdict = _build_verdict(
         readings, overflow_summary, freshness, rainfall_summary,
-        live_overflows=live_overflows,
+        live_overflow_info=live_overflow_info,
     )
+
+    # ── 8. Provenance metadata ───────────────────────────────
+    retrieved_at = _fetch_end.isoformat()
+    data_sources = {
+        "water_quality": {
+            "source": "EA WIMS",
+            "endpoint": f"{WIMS_BASE}/sampling-point/*/observation",
+            "retrieved_at": retrieved_at,
+        },
+        "live_overflows": {
+            "source": "NSOH (National Storm Overflow Hub)",
+            "status": live_overflow_info.get("status"),
+            "polled_at": live_overflow_info.get("polled_at"),
+        },
+        "rainfall": {
+            "source": "EA Flood Monitoring",
+            "endpoint": f"{EA_FLOOD_BASE}/id/stations",
+            "retrieved_at": retrieved_at,
+        },
+        "overflow_annual_returns": {
+            "source": "EA EDM Annual Return",
+            "report_year": 2024,
+        },
+        "bathing_assessment": {
+            "source": "EA Bathing Water Quality API",
+            "retrieved_at": retrieved_at if bathing_assessment else None,
+        },
+    }
 
     return {
         "location": {"lat": lat, "lon": lon},
@@ -723,8 +818,10 @@ async def site_detail(
             "summary": overflow_summary,
             "worst_overflows": worst_overflows,
         },
-        "live_overflows": live_overflows,
+        "live_overflows": live_overflow_info.get("overflows", []),
+        "live_overflow_status": live_overflow_info.get("status"),
         "bathing_water": bathing_water,
         "bathing_assessment": bathing_assessment,
         "verdict": verdict,
+        "data_sources": data_sources,
     }

@@ -80,6 +80,16 @@ def _normalise_duration(raw: str | None) -> str | None:
     return "0h"
 
 
+_CSV_INJECTION_PREFIXES = frozenset("=+-@\t\r")
+
+
+def _sanitise_csv_value(val):
+    """Prefix dangerous cell values so spreadsheet apps don't interpret them as formulae."""
+    if isinstance(val, str) and val and val[0] in _CSV_INJECTION_PREFIXES:
+        return "'" + val
+    return val
+
+
 def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
     """Return a list of dicts as a downloadable CSV."""
     cache_hdr = {"Cache-Control": "public, max-age=3600"}
@@ -89,10 +99,11 @@ def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}", **cache_hdr},
         )
+    sanitised = [{k: _sanitise_csv_value(v) for k, v in row.items()} for row in rows]
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
+    writer = csv.DictWriter(buf, fieldnames=sanitised[0].keys())
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows(sanitised)
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue()]),
@@ -164,11 +175,11 @@ def overview():
 
 @router.get("/overflows")
 def overflows_list(
-    site_name: Optional[str] = Query(None, description="Filter by site name (substring match)"),
-    company: Optional[str] = Query(None, description="Filter by water company (substring match)"),
+    site_name: Optional[str] = Query(None, max_length=200, description="Filter by site name (substring match)"),
+    company: Optional[str] = Query(None, max_length=200, description="Filter by water company (substring match)"),
     min_spills: Optional[int] = Query(None, ge=0, description="Minimum spill count"),
     max_spills: Optional[int] = Query(None, ge=0, description="Maximum spill count"),
-    receiving_water: Optional[str] = Query(None, description="Filter by receiving water (substring)"),
+    receiving_water: Optional[str] = Query(None, max_length=200, description="Filter by receiving water (substring)"),
     near_bathing: Optional[bool] = Query(None, description="Only overflows near a bathing water"),
     near_bathing_km: float = Query(2.0, ge=0.1, le=50, description="Max km to bathing water (if near_bathing=true)"),
     sort: str = Query("spills_desc", description="Sort: spills_desc, spills_asc, name"),
@@ -177,6 +188,11 @@ def overflows_list(
     format: Optional[str] = Query(None, description="Set to 'csv' for CSV download"),
 ):
     """Filterable, sortable, paginated overflow query with optional CSV export."""
+    _ALLOWED_SORTS = {"spills_desc", "spills_asc", "name"}
+    if sort not in _ALLOWED_SORTS:
+        from fastapi import HTTPException
+        raise HTTPException(422, f"Invalid sort value. Allowed: {', '.join(sorted(_ALLOWED_SORTS))}")
+
     conditions = ["1=1"]
     params: list = []
 
@@ -336,8 +352,8 @@ def companies():
 
 @router.get("/receiving-waters")
 def receiving_waters(
-    name: Optional[str] = Query(None, description="Filter by receiving water name (substring match)"),
-    company: Optional[str] = Query(None, description="Filter by water company"),
+    name: Optional[str] = Query(None, max_length=200, description="Filter by receiving water name (substring match)"),
+    company: Optional[str] = Query(None, max_length=200, description="Filter by water company"),
     min_overflows: int = Query(1, ge=1, description="Minimum overflow count"),
     limit: int = Query(50, ge=1, le=500),
     format: Optional[str] = Query(None),
@@ -402,7 +418,7 @@ def receiving_waters(
 
 @router.get("/bathing-impact")
 def bathing_impact(
-    name: Optional[str] = Query(None, description="Filter by bathing water name (substring match)"),
+    name: Optional[str] = Query(None, max_length=200, description="Filter by bathing water name (substring match)"),
     max_distance_km: float = Query(5.0, ge=0.5, le=50, description="Max distance to consider"),
     min_spills: Optional[int] = Query(None, ge=0),
     sort: str = Query("total_spills", description="Sort: total_spills, overflow_count, name"),
@@ -411,6 +427,11 @@ def bathing_impact(
     format: Optional[str] = Query(None),
 ):
     """For each bathing water, summarise nearby overflow threat."""
+    _ALLOWED_SORTS = {"total_spills", "overflow_count", "name"}
+    if sort not in _ALLOWED_SORTS:
+        from fastapi import HTTPException
+        raise HTTPException(422, f"Invalid sort value. Allowed: {', '.join(sorted(_ALLOWED_SORTS))}")
+
     max_distance_m = int(max_distance_km * 1000)
 
     name_condition = ""

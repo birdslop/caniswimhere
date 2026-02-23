@@ -11,7 +11,7 @@ Given a lat/lon, returns everything relevant within a radius:
 from fastapi import APIRouter, Query
 from api.db import pool
 
-router = APIRouter()
+router = APIRouter(tags=["Swim Map"])
 
 # Default / max radius in metres
 DEFAULT_RADIUS = 5000
@@ -20,8 +20,8 @@ MAX_RADIUS = 25000
 
 @router.get("/nearby")
 def nearby(
-    lat: float = Query(..., description="Latitude (WGS84)"),
-    lon: float = Query(..., description="Longitude (WGS84)"),
+    lat: float = Query(..., ge=-90, le=90, description="Latitude (WGS84)"),
+    lon: float = Query(..., ge=-180, le=180, description="Longitude (WGS84)"),
     radius: int = Query(DEFAULT_RADIUS, ge=100, le=MAX_RADIUS,
                         description="Search radius in metres"),
 ):
