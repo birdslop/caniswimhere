@@ -103,6 +103,25 @@ def _parse_csv_observation(row: dict) -> dict | None:
     }
 
 
+# Common verbose WIMS unit labels → short human-readable form
+_UNIT_MAP = {
+    "NUMBER PER HUNDRED MILLILITRES": "per 100 ml",
+    "Colony Forming Units / 100ml": "cfu/100 ml",
+    "COLONY FORMING UNITS / 100ML": "cfu/100 ml",
+    "CELSIUS": "°C",
+    "METRE": "m",
+    "MG/L": "mg/l",
+    "mg/l": "mg/l",
+    "NTU": "NTU",
+    "%": "%",
+}
+
+
+def _short_unit(raw: str) -> str:
+    """Shorten verbose WIMS unit labels for display."""
+    return _UNIT_MAP.get(raw, raw)
+
+
 def _assess_reading(determinand: str, value: float) -> str:
     """Return 'good', 'moderate', or 'poor' for a single reading."""
     thresholds = BWD_THRESHOLDS.get(determinand)
@@ -232,23 +251,21 @@ def _build_verdict(
             continue
         latest = data[0]
         display = latest.get("display_value", str(latest["value"]))
+        unit = _short_unit(latest.get("unit", ""))
         assessment = _assess_reading(label, latest["value"])
         if assessment == "poor" and data_trustworthy:
             level = "red"
             reasons.append(
-                f"Latest {label} reading: {display} {latest['unit']} "
-                f"({latest['date']}) — exceeds safe limits."
+                f"{label}: {display} {unit} ({latest['date']}) — exceeds safe limits."
             )
         elif assessment == "sufficient" and data_trustworthy:
             level = max(level, "amber", key=["green", "amber", "red"].index)
             reasons.append(
-                f"Latest {label} reading: {display} {latest['unit']} "
-                f"({latest['date']}) — elevated."
+                f"{label}: {display} {unit} ({latest['date']}) — elevated."
             )
         else:
             reasons.append(
-                f"Latest {label} reading: {display} {latest['unit']} "
-                f"({latest['date']}) — {assessment}."
+                f"{label}: {display} {unit} ({latest['date']}) — {assessment}."
             )
 
     if not readings:
@@ -262,6 +279,7 @@ def _build_verdict(
     return {
         "level": level,
         "summary": " ".join(reasons),
+        "reasons": reasons,
     }
 
 
