@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
   :root {
     --navy: #0f2b46;
@@ -451,6 +452,7 @@
 <div id="loading" class="loading">Searching nearby…</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 const API = '/api';
 const RADIUS = 5000;
@@ -513,41 +515,143 @@ const ICONS_SELECTED = {
   station:    svgIconSelected('#dd6b20', '📊'),
 };
 
-// ── Map click handler ────────────────────────────────────────
-map.on('click', async (e) => {
-  const { lat, lng } = e.latlng;
+// ── Client-side cache ────────────────────────────────────────
+const _cache = new Map();
+function cacheGet(key) {
+  const e = _cache.get(key);
+  if (!e) return null;
+  if (Date.now() > e.exp) { _cache.delete(key); return null; }
+  return e.d;
+}
+function cacheSet(key, data, ttlMs) {
+  _cache.set(key, { d: data, exp: Date.now() + ttlMs });
+  if (_cache.size > 60) _cache.delete(_cache.keys().next().value);
+}
+
+// ── Overview layers (national map) ───────────────────────────
+function clusterIcon(color) {
+  return function(cluster) {
+    var n = cluster.getChildCount();
+    var sz = n < 10 ? 30 : n < 100 ? 38 : 48;
+    return L.divIcon({
+      html: '<div style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;' +
+        'background:' + color + ';color:#fff;display:flex;align-items:center;' +
+        'justify-content:center;font-weight:700;font-size:' + (sz < 35 ? 11 : 13) + 'px;' +
+        'border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 6px rgba(0,0,0,.3);' +
+        'font-family:var(--font-body)">' + n + '</div>',
+      className: '',
+      iconSize: [sz, sz],
+    });
+  };
+}
+
+const bathingCluster = L.markerClusterGroup({
+  iconCreateFunction: clusterIcon('#3182ce'),
+  maxClusterRadius: 45,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+  disableClusteringAtZoom: 13,
+  chunkedLoading: true,
+});
+
+const overflowCluster = L.markerClusterGroup({
+  iconCreateFunction: clusterIcon('#e53e3e'),
+  maxClusterRadius: 55,
+  showCoverageOnHover: false,
+  zoomToBoundsOnClick: true,
+  disableClusteringAtZoom: 14,
+  chunkedLoading: true,
+});
+
+map.addLayer(bathingCluster);
+map.addLayer(overflowCluster);
+
+L.control.layers(null, {
+  '\u{1F3D6} Bathing Waters': bathingCluster,
+  '\u26A0 Storm Overflows': overflowCluster,
+}, { position: 'topright', collapsed: true }).addTo(map);
+
+// Fetch national overview and populate clusters
+(async function() {
+  try {
+    var resp = await fetch(API + '/overview');
+    var ov = await resp.json();
+
+    // Bathing waters immediately (~581 points)
+    var bwDot = L.divIcon({
+      className: '', iconSize: [12, 12], iconAnchor: [6, 6],
+      html: '<div style="width:12px;height:12px;border-radius:50%;background:#3182ce;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.25)"></div>',
+    });
+    for (var i = 0; i < ov.bathing_waters.length; i++) {
+      var b = ov.bathing_waters[i];
+      if (!b.lat || !b.lon) continue;
+      var m = L.marker([b.lat, b.lon], { icon: bwDot });
+      m.bindTooltip(b.name || 'Bathing Water', { direction: 'top' });
+      (function(lat, lon){ m.on('click', function(){ triggerNearby(lat, lon); }); })(b.lat, b.lon);
+      bathingCluster.addLayer(m);
+    }
+
+    // Overflows lazily after first paint (~18k points)
+    setTimeout(function() {
+      var ovDot = L.divIcon({
+        className: '', iconSize: [10, 10], iconAnchor: [5, 5],
+        html: '<div style="width:10px;height:10px;border-radius:50%;background:#e53e3e;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>',
+      });
+      var batch = [];
+      for (var j = 0; j < ov.overflows.length; j++) {
+        var o = ov.overflows[j];
+        if (!o.lat || !o.lon) continue;
+        var om = L.marker([o.lat, o.lon], { icon: ovDot });
+        om.bindTooltip((o.name || o.id) + (o.spills != null ? ' \u00b7 ' + o.spills + ' spills' : ''), { direction: 'top' });
+        (function(lat, lon){ om.on('click', function(){ triggerNearby(lat, lon); }); })(o.lat, o.lon);
+        batch.push(om);
+      }
+      overflowCluster.addLayers(batch);
+    }, 150);
+  } catch (err) {
+    console.warn('Overview load failed:', err);
+  }
+})();
+
+// ── Trigger nearby search (used by map click, overview markers, search) ──
+async function triggerNearby(lat, lon) {
+  if (map.getZoom() < 11) map.flyTo([lat, lon], 13, { duration: 1.2 });
   document.getElementById('hint').classList.add('hidden');
   document.getElementById('loading').classList.add('visible');
-
-  // Clear previous
   markers.clearLayers();
+  markerIndex.clear();
   if (searchCircle) map.removeLayer(searchCircle);
   if (clickMarker) map.removeLayer(clickMarker);
+  selectedMarker = null;
 
-  // Add click marker + radius circle
-  clickMarker = L.circleMarker([lat, lng], {
+  clickMarker = L.circleMarker([lat, lon], {
     radius: 6, color: '#1a365d', fillColor: '#1a365d',
     fillOpacity: 1, weight: 2,
   }).addTo(map);
-
-  searchCircle = L.circle([lat, lng], {
+  searchCircle = L.circle([lat, lon], {
     radius: RADIUS, color: '#1a365d', fillColor: '#1a365d',
     fillOpacity: 0.05, weight: 1, dashArray: '5,5',
   }).addTo(map);
 
   try {
-    const resp = await fetch(
-      `${API}/nearby?lat=${lat}&lon=${lng}&radius=${RADIUS}`
-    );
-    const data = await resp.json();
-    showResults(data, lat, lng);
+    var ck = 'nearby:' + lat.toFixed(4) + ',' + lon.toFixed(4);
+    var data = cacheGet(ck);
+    if (!data) {
+      var resp = await fetch(API + '/nearby?lat=' + lat + '&lon=' + lon + '&radius=' + RADIUS);
+      data = await resp.json();
+      cacheSet(ck, data, 300000);
+    }
+    showResults(data, lat, lon);
   } catch (err) {
     console.error(err);
     alert('Failed to fetch data. Is the API server running?');
   } finally {
     document.getElementById('loading').classList.remove('visible');
   }
-});
+}
+
+// ── Map click handler ────────────────────────────────────────
+map.on('click', function(e) { triggerNearby(e.latlng.lat, e.latlng.lng); });
 
 // ── Render results ───────────────────────────────────────────
 function showResults(data, lat, lng) {
@@ -785,8 +889,13 @@ async function fetchDetail(lat, lon, label, category) {
     '</div>';
   panel.classList.add('visible');
   try {
-    const resp = await fetch(`${API}/site/detail?lat=${lat}&lon=${lon}`);
-    const data = await resp.json();
+    const dk = 'detail:' + lat.toFixed(5) + ',' + lon.toFixed(5);
+    let data = cacheGet(dk);
+    if (!data) {
+      const resp = await fetch(`${API}/site/detail?lat=${lat}&lon=${lon}`);
+      data = await resp.json();
+      cacheSet(dk, data, 120000);
+    }
     if (label) currentSelectionTitle = label; else currentSelectionTitle = null;
     if (category) currentSelectionCategory = category; else currentSelectionCategory = null;
     showDetail(data);
@@ -1082,25 +1191,8 @@ function searchLocation(e) {
       var lon = parseFloat(r.lon);
       map.flyTo([lat, lon], 13, { duration: 1.2 });
 
-      // Trigger the same flow as a map click
-      markers.clearLayers();
-      if (searchCircle) map.removeLayer(searchCircle);
-      if (clickMarker) map.removeLayer(clickMarker);
-
-      clickMarker = L.circleMarker([lat, lon], {
-        radius: 6, color: '#1a365d', fillColor: '#1a365d',
-        fillOpacity: 1, weight: 2,
-      }).addTo(map);
-
-      searchCircle = L.circle([lat, lon], {
-        radius: RADIUS, color: '#1a365d', fillColor: '#1a365d',
-        fillOpacity: 0.05, weight: 1, dashArray: '5,5',
-      }).addTo(map);
-
       loading.textContent = 'Searching nearby…';
-      return fetch(API + '/nearby?lat=' + lat + '&lon=' + lon + '&radius=' + RADIUS)
-        .then(function(resp){ return resp.json(); })
-        .then(function(data){ showResults(data, lat, lon); });
+      return triggerNearby(lat, lon);
     })
     .catch(function(err){
       console.error(err);
