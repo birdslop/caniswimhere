@@ -460,7 +460,9 @@ async def site_detail(
                        round(ST_Distance(
                            location::geography,
                            {point}::geography
-                       ))::int AS distance_m
+                       ))::int AS distance_m,
+                       ST_Y(location) AS lat,
+                       ST_X(location) AS lon
                 FROM sites
                 WHERE site_type = 'bathing_water'
                   AND ST_DWithin(location::geography, {point}::geography, 2000)
@@ -475,6 +477,8 @@ async def site_detail(
                     "name": bw_row[1],
                     "eubwid": bw_row[2],
                     "distance_m": bw_row[3],
+                    "lat": bw_row[4],
+                    "lon": bw_row[5],
                 }
 
     # ── 5–6: Fetch remote datasets concurrently for speed ────
