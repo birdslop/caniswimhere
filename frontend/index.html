@@ -773,6 +773,20 @@ function closePanel() {
   document.getElementById('panel').classList.remove('visible');
 }
 
+function navigateToPoint(lat, lon) {
+  map.flyTo([lat, lon], 14, { duration: 1 });
+  map.fire('click', { latlng: L.latLng(lat, lon) });
+}
+
+// Click delegation for navigable cards in the detail panel
+document.getElementById('panel-body').addEventListener('click', function(e) {
+  var card = e.target.closest('[data-nav-lat]');
+  if (!card) return;
+  var lat = parseFloat(card.dataset.navLat);
+  var lon = parseFloat(card.dataset.navLon);
+  if (lat && lon) navigateToPoint(lat, lon);
+});
+
 function formatDist(m) {
   if (m == null) return '';
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
@@ -947,14 +961,16 @@ function showDetail(data) {
           else if (o.last_spill_hours_ago < 168) lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 24) + ' days ago';
           else lastSpill = 'Last spill: ' + Math.round(o.last_spill_hours_ago / 168) + ' weeks ago';
         }
-        return '<div class="live-card ' + cardClass + '">' +
+        var navData = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '"' : '';
+        return '<div class="live-card ' + cardClass + '"' + navData + ' style="cursor:pointer">' +
           '<div style="display:flex;justify-content:space-between;align-items:center">' +
             '<span style="font-weight:600">' + (o.receiving_water || o.id || 'Overflow') + '</span>' +
             statusBit +
           '</div>' +
           '<div style="font-size:.72rem;color:#718096;margin-top:2px">' +
-            (o.company || '') + ' · ' + formatDist(o.distance_m) + ' away' +
-            (lastSpill ? ' · ' + lastSpill : '') +
+            (o.company || '') + ' \u00b7 ' + formatDist(o.distance_m) + ' away' +
+            (lastSpill ? ' \u00b7 ' + lastSpill : '') +
+            (navData ? ' <span style="color:var(--accent);font-weight:600" title="Explore this location">↗</span>' : '') +
           '</div></div>';
       }).join('');
     }
@@ -981,8 +997,11 @@ function showDetail(data) {
         </div>
       </div>
       ${(data.overflow_threat && data.overflow_threat.worst_overflows || []).slice(0, 3).map(function(o){
-        return '<div class="overflow-card" style="margin-top:8px">' +
-          '<div class="oc-name">' + (o.name || 'Unnamed overflow') + '</div>' +
+        var nav = o.lat && o.lon ? ' data-nav-lat="' + o.lat + '" data-nav-lon="' + o.lon + '"' : '';
+        return '<div class="overflow-card"' + nav + ' style="margin-top:8px;cursor:pointer">' +
+          '<div class="oc-name">' + (o.name || 'Unnamed overflow') +
+            (nav ? ' <span style="color:var(--accent);font-weight:600;font-size:.75rem" title="Explore this location">↗</span>' : '') +
+          '</div>' +
           '<div class="oc-detail">' +
             (o.water_company || '') + ' \u00b7 ' + (o.spills_2024 != null ? o.spills_2024 + ' spills' : 'No data') +
             ' \u00b7 ' + formatDist(o.distance_m) + ' away' +

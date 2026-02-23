@@ -427,7 +427,9 @@ async def site_detail(
                        round(ST_Distance(
                            ST_Transform(o.location, 4326)::geography,
                            {point}::geography
-                       ))::int AS distance_m
+                       ))::int AS distance_m,
+                       ST_Y(ST_Transform(o.location, 4326)) AS lat,
+                       ST_X(ST_Transform(o.location, 4326)) AS lon
                 FROM overflows o
                 LEFT JOIN overflow_annual_returns ar
                     ON ar.unique_id = o.unique_id AND ar.report_year = 2024
@@ -446,6 +448,8 @@ async def site_detail(
                     "spills_2024": r[3],
                     "duration_2024": _normalise_duration(r[4]),
                     "distance_m": r[5],
+                    "lat": r[6],
+                    "lon": r[7],
                 }
                 for r in cur.fetchall()
             ]
