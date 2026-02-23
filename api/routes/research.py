@@ -6,6 +6,7 @@ water quality, and bathing water data for investigative use.
 """
 import csv
 import io
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -16,6 +17,68 @@ router = APIRouter(prefix="/research", tags=["Research"])
 
 
 # ── helpers ───────────────────────────────────────────────────
+
+def _normalise_duration(raw: str | None) -> str | None:
+    """Convert various duration formats from EDM data into a consistent
+    human-readable string like '152d 18h 33m' or '3h 15m'.
+
+    Handles:
+      - Python timedelta repr: '23 days, 2:53:24'  /  '365 days, 12:33:00'
+      - Plain hours text:      '3666 hours'  (DCWW / Welsh Water)
+      - HH:MM:SS with no days: '2:53:24'
+      - Already numeric hours: '3666.5'
+    """
+    if not raw:
+        return raw
+    text = str(raw).strip()
+    if not text:
+        return None
+
+    total_seconds = None
+
+    # Pattern: 'N days, HH:MM:SS'  or  'N day, HH:MM:SS'
+    m = re.match(r"(\d+)\s+days?,?\s+(\d+):(\d+):(\d+)", text)
+    if m:
+        d, h, mn, s = int(m[1]), int(m[2]), int(m[3]), int(m[4])
+        total_seconds = d * 86400 + h * 3600 + mn * 60 + s
+
+    # Pattern: 'NNN hours'
+    if total_seconds is None:
+        m = re.match(r"([\d.]+)\s*hours?", text, re.IGNORECASE)
+        if m:
+            total_seconds = float(m[1]) * 3600
+
+    # Pattern: 'HH:MM:SS' (no days)
+    if total_seconds is None:
+        m = re.match(r"(\d+):(\d+):(\d+)$", text)
+        if m:
+            h, mn, s = int(m[1]), int(m[2]), int(m[3])
+            total_seconds = h * 3600 + mn * 60 + s
+
+    # Pattern: plain number (treat as hours)
+    if total_seconds is None:
+        try:
+            total_seconds = float(text) * 3600
+        except ValueError:
+            return text  # can't parse — return as-is
+
+    total_seconds = max(0, total_seconds)
+    days = int(total_seconds // 86400)
+    hours = int((total_seconds % 86400) // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    total_hours = total_seconds / 3600
+
+    if days > 0:
+        parts = [f"{days}d", f"{hours}h"]
+        if minutes:
+            parts.append(f"{minutes}m")
+        return " ".join(parts) + f" ({total_hours:,.0f} hrs)"
+    if hours > 0:
+        return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+    if minutes > 0:
+        return f"{minutes}m"
+    return "0h"
+
 
 def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
     """Return a list of dicts as a downloadable CSV."""
@@ -214,7 +277,7 @@ def overflows_list(
                     "receiving_water": r[3],
                     "receiving_water_normalised": r[4],
                     "spills_2024": r[5],
-                    "duration_2024": r[6],
+                    "duration_2024": _normalise_duration(r[6]),
                     "edm_operational_pct": float(r[7]) if r[7] else None,
                     "asset_type": r[8],
                 }
@@ -469,7 +532,7 @@ def overflow_detail(unique_id: str):
                 {
                     "year": r[0],
                     "spills": r[1],
-                    "duration": r[2],
+                    "duration": _normalise_duration(r[2]),
                     "edm_operational_pct": float(r[3]) if r[3] else None,
                     "long_term_avg_spills": float(r[4]) if r[4] else None,
                 }

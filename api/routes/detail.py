@@ -10,10 +10,16 @@ Optionally enriches with EA official bathing water risk prediction
 if a designated bathing water is nearby.
 """
 import asyncio
+import csv
+import io
+import logging
 import httpx
 from datetime import date, timedelta, datetime, timezone
 from fastapi import APIRouter, Query, HTTPException
 from api.db import pool
+from api.routes.research import _normalise_duration
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -56,9 +62,10 @@ BWD_THRESHOLDS = {
 }
 
 EA_TIMEOUT = 5.5
+WIMS_TIMEOUT = 10.0   # WIMS CSV can take a few seconds for large stations
 NSOH_TIMEOUT = 4.0
 WIMS_BASE = "https://environment.data.gov.uk/water-quality"
-WIMS_HEADERS = {"Accept": "application/ld+json"}
+WIMS_CSV_HEADERS = {"Accept": "text/csv"}
 EA_FLOOD_BASE = "https://environment.data.gov.uk/flood-monitoring"
 EA_JSON_HEADERS = {"Accept": "application/json"}
 
@@ -69,33 +76,30 @@ STALE_DAYS = 180          # >6 months = stale
 VERY_STALE_DAYS = 365     # >1 year = very stale
 
 
-def _parse_observation(obs: dict) -> dict | None:
-    """Extract the useful bits from a verbose WIMS LD+JSON observation."""
-    det = obs.get("observedProperty", {})
-    det_code = det.get("notation", "")
+def _parse_csv_observation(row: dict) -> dict | None:
+    """Parse a single row from WIMS CSV response into a reading dict."""
+    det_code = row.get("determinand.notation", "")
     if det_code not in SWIM_DETERMINANDS:
         return None
-    result = obs.get("hasResult", {})
-    value = result.get("numericValue")
-    # Below-detection-limit: numericValue is null, upperBound is the limit
-    below_limit = False
-    if value is None:
-        upper = result.get("upperBound")
-        if upper is not None:
-            value = upper
-            below_limit = True
-        else:
-            return None
-    unit_obj = result.get("hasUnit", {})
-    unit = unit_obj.get("altLabel") or unit_obj.get("prefLabel", "")
+    raw_result = (row.get("result") or "").strip()
+    if not raw_result:
+        return None
+    # Below-detection-limit results start with '<'
+    below_limit = raw_result.startswith("<")
+    try:
+        value = float(raw_result.lstrip("<"))
+    except (ValueError, TypeError):
+        return None
+    unit = row.get("unit", "")
+    obs_time = row.get("phenomenonTime") or ""
     return {
         "determinand": SWIM_DETERMINANDS[det_code],
         "determinand_code": det_code,
         "value": value,
         "unit": unit,
-        "display_value": f"<{value}" if below_limit else str(value),
+        "display_value": f"<{value:g}" if below_limit else f"{value:g}",
         "below_limit": below_limit,
-        "date": (obs.get("phenomenonTime") or "")[:10],
+        "date": obs_time[:10],
     }
 
 
@@ -380,7 +384,7 @@ async def site_detail(
                     "water_company": r[1],
                     "receiving_water": r[2],
                     "spills_2024": r[3],
-                    "duration_2024": r[4],
+                    "duration_2024": _normalise_duration(r[4]),
                     "distance_m": r[5],
                 }
                 for r in cur.fetchall()
@@ -411,6 +415,7 @@ async def site_detail(
 
     # ── 5–6: Fetch remote datasets concurrently for speed ────
     async def fetch_wims():
+        """Fetch water quality readings from EA WIMS API using fast CSV format."""
         readings_local = []
         if not nearest_sp:
             return readings_local
@@ -421,7 +426,7 @@ async def site_detail(
             None,                                  # all time
         ]
         try:
-            async with httpx.AsyncClient(timeout=EA_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=WIMS_TIMEOUT) as client:
                 for from_date in date_windows:
                     url = (
                         f"{WIMS_BASE}/sampling-point/{notation}"
@@ -429,14 +434,15 @@ async def site_detail(
                     )
                     if from_date:
                         url += f"&dateFrom={from_date.isoformat()}"
-                    resp = await client.get(url, headers=WIMS_HEADERS)
+                    resp = await client.get(url, headers=WIMS_CSV_HEADERS)
                     if resp.status_code != 200:
+                        log.warning("WIMS %s returned %s", url, resp.status_code)
                         continue
-                    data = resp.json()
-                    raw_obs = data.get("member", [])
+                    # Parse CSV response
+                    reader = csv.DictReader(io.StringIO(resp.text))
                     parsed = []
-                    for obs in raw_obs:
-                        p = _parse_observation(obs)
+                    for row in reader:
+                        p = _parse_csv_observation(row)
                         if p:
                             parsed.append(p)
                     if parsed:
@@ -447,8 +453,8 @@ async def site_detail(
                                 seen[key] = r
                         readings_local = sorted(seen.values(), key=lambda x: x["determinand"])
                         break
-        except Exception:
-            pass
+        except Exception as exc:
+            log.warning("WIMS fetch failed for %s: %s", notation, exc)
         return readings_local
 
     async def fetch_bathing():

@@ -383,9 +383,9 @@
       <h3>Verdicts</h3>
       <p>Each location receives a verdict based on the latest available water quality readings, nearby storm overflow activity, recent rainfall, and official bathing water assessments:</p>
       <ul style="margin-top:10px;gap:8px">
-        <li><span class="verdict-pill verdict-pill-green" style="font-size:.82rem;padding:5px 14px">✓ Good to swim</span> <span>Water quality is good, no active overflows nearby.</span></li>
-        <li><span class="verdict-pill verdict-pill-amber" style="font-size:.82rem;padding:5px 14px">! Use caution</span> <span>Elevated bacteria, recent rainfall, or nearby overflow activity.</span></li>
-        <li><span class="verdict-pill verdict-pill-red" style="font-size:.82rem;padding:5px 14px">✗ Not advised</span> <span>Poor water quality or active discharge detected.</span></li>
+        <li><span class="verdict-pill verdict-pill-green" style="font-size:.82rem;padding:5px 14px">Good to swim ✓</span> <span>Water quality is good, no active overflows nearby.</span></li>
+        <li><span class="verdict-pill verdict-pill-amber" style="font-size:.82rem;padding:5px 14px">Use caution !</span> <span>Elevated bacteria, recent rainfall, or nearby overflow activity.</span></li>
+        <li><span class="verdict-pill verdict-pill-red" style="font-size:.82rem;padding:5px 14px">Not advised ✗</span> <span>Poor water quality or active discharge detected.</span></li>
         <li><span class="verdict-pill verdict-pill-grey" style="font-size:.82rem;padding:5px 14px">No data</span> <span>Insufficient or outdated data available.</span></li>
       </ul>
       <p style="margin-top:8px;font-size:.88rem">When data is old or unavailable, the verdict is downgraded and a warning is shown — we never present stale data as if it were current.</p>
@@ -820,7 +820,7 @@ function showDetail(data) {
     : 'Use caution';
   body.innerHTML += `
     <div class="verdict-row">
-      <span class="verdict-pill ${pillClass}">${pillIcon} ${pillLabel}</span>
+      <span class="verdict-pill ${pillClass}">${pillLabel} ${pillIcon}</span>
       <span class="verdict-desc">${v.summary || 'Based on latest available data'}</span>
     </div>
   `;
