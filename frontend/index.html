@@ -513,6 +513,19 @@ const ICONS_SELECTED = {
   station:    svgIconSelected('#dd6b20', '📊'),
 };
 
+// ── Client-side cache ────────────────────────────────────────
+const _cache = new Map();
+function cacheGet(key) {
+  const e = _cache.get(key);
+  if (!e) return null;
+  if (Date.now() > e.exp) { _cache.delete(key); return null; }
+  return e.d;
+}
+function cacheSet(key, data, ttlMs) {
+  _cache.set(key, { d: data, exp: Date.now() + ttlMs });
+  if (_cache.size > 60) _cache.delete(_cache.keys().next().value);
+}
+
 // ── Map click handler ────────────────────────────────────────
 map.on('click', async (e) => {
   const { lat, lng } = e.latlng;
@@ -521,8 +534,10 @@ map.on('click', async (e) => {
 
   // Clear previous
   markers.clearLayers();
+  markerIndex.clear();
   if (searchCircle) map.removeLayer(searchCircle);
   if (clickMarker) map.removeLayer(clickMarker);
+  selectedMarker = null;
 
   // Add click marker + radius circle
   clickMarker = L.circleMarker([lat, lng], {
@@ -536,10 +551,15 @@ map.on('click', async (e) => {
   }).addTo(map);
 
   try {
-    const resp = await fetch(
-      `${API}/nearby?lat=${lat}&lon=${lng}&radius=${RADIUS}`
-    );
-    const data = await resp.json();
+    var ck = 'nearby:' + lat.toFixed(4) + ',' + lng.toFixed(4);
+    var data = cacheGet(ck);
+    if (!data) {
+      var resp = await fetch(
+        `${API}/nearby?lat=${lat}&lon=${lng}&radius=${RADIUS}`
+      );
+      data = await resp.json();
+      cacheSet(ck, data, 300000);
+    }
     showResults(data, lat, lng);
   } catch (err) {
     console.error(err);
@@ -785,8 +805,13 @@ async function fetchDetail(lat, lon, label, category) {
     '</div>';
   panel.classList.add('visible');
   try {
-    const resp = await fetch(`${API}/site/detail?lat=${lat}&lon=${lon}`);
-    const data = await resp.json();
+    var dk = 'detail:' + lat.toFixed(5) + ',' + lon.toFixed(5);
+    var data = cacheGet(dk);
+    if (!data) {
+      var resp = await fetch(`${API}/site/detail?lat=${lat}&lon=${lon}`);
+      data = await resp.json();
+      cacheSet(dk, data, 120000);
+    }
     if (label) currentSelectionTitle = label; else currentSelectionTitle = null;
     if (category) currentSelectionCategory = category; else currentSelectionCategory = null;
     showDetail(data);
@@ -1098,9 +1123,12 @@ function searchLocation(e) {
       }).addTo(map);
 
       loading.textContent = 'Searching nearby…';
+      var nk = 'nearby:' + lat.toFixed(4) + ',' + lon.toFixed(4);
+      var nc = cacheGet(nk);
+      if (nc) { showResults(nc, lat, lon); return; }
       return fetch(API + '/nearby?lat=' + lat + '&lon=' + lon + '&radius=' + RADIUS)
         .then(function(resp){ return resp.json(); })
-        .then(function(data){ showResults(data, lat, lon); });
+        .then(function(data){ cacheSet(nk, data, 300000); showResults(data, lat, lon); });
     })
     .catch(function(err){
       console.error(err);
