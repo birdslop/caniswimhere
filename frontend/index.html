@@ -805,7 +805,10 @@ function showResults(data, lat, lng) {
     return '';
   }
 
-  panel.classList.add('visible');
+  // On mobile, don't auto-open panel — let user tap map markers first
+  if (window.innerWidth > 640) {
+    panel.classList.add('visible');
+  }
 }
 
 function closePanel() {
