@@ -320,6 +320,21 @@
   .overlay-body ul.plain-list { list-style: disc; margin-left: 20px; }
   .overlay-body ul.plain-list li { display: list-item; font-size: .9rem; line-height: 1.6; }
 
+  /* Welcome overlay */
+  #welcome-overlay .overlay-card { width: min(480px, 92vw); text-align: center; }
+  #welcome-overlay .overlay-body { padding: 24px 28px 28px; }
+  #welcome-overlay .welcome-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 800; color: var(--navy); margin-bottom: 12px; }
+  #welcome-overlay .welcome-text { font-size: .95rem; color: var(--text); line-height: 1.6; margin-bottom: 8px; }
+  #welcome-overlay .welcome-stat { font-size: .88rem; color: var(--text-secondary); line-height: 1.5; margin: 14px 0 20px; min-height: 1.5em; }
+  #welcome-overlay .welcome-stat strong { color: #dc2626; font-weight: 700; }
+  .welcome-btn {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-family: var(--font-heading); font-weight: 700; font-size: 1rem;
+    padding: 10px 32px; border: none; border-radius: 8px; cursor: pointer;
+    transition: background .2s;
+  }
+  .welcome-btn:hover { background: #0369a1; }
+
   @media (max-width: 640px) {
     #header { gap: 8px; padding: 12px 14px; }
     #header h1 { font-size: 1.25rem; width: 100%; }
@@ -349,6 +364,18 @@
 </div>
 
 <div id="map"></div>
+
+<!-- Welcome overlay -->
+<div id="welcome-overlay" class="overlay" onclick="overlayBgClick(event)">
+  <div class="overlay-card" onclick="event.stopPropagation()">
+    <div class="overlay-body">
+      <div class="welcome-title">🏊 Welcome to Can I Swim Here?</div>
+      <p class="welcome-text">Check water quality at swim spots across England, Wales &amp; Scotland — plus a deeper Data Explorer and API for journalists, researchers and campaigners.</p>
+      <p class="welcome-stat" id="welcome-stat"></p>
+      <button class="welcome-btn" onclick="closeOverlay('welcome-overlay')">Get Started</button>
+    </div>
+  </div>
+</div>
 
 <!-- How To Use overlay -->
 <div id="help-overlay" class="overlay" onclick="overlayBgClick(event)">
@@ -1118,6 +1145,24 @@ function readingAge(dateStr) {
 
 // Hide hint after 8 seconds
 setTimeout(function(){ document.getElementById('hint').classList.add('hidden'); }, 8000);
+
+// ── Welcome overlay (once per session) ───────────────────────
+(function() {
+  if (!sessionStorage.getItem('welcomed')) {
+    openOverlay('welcome-overlay');
+    sessionStorage.setItem('welcomed', '1');
+  }
+  fetch(API + '/research/live-summary')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('welcome-stat');
+      if (d && typeof d.last_12h === 'number') {
+        el.innerHTML = 'In the last 12 hours, we\u2019ve recorded <strong>' +
+          d.last_12h.toLocaleString() + ' sewage discharge events</strong> across England &amp; Scotland.';
+      }
+    })
+    .catch(function(){});
+})();
 
 // ── Overlays ─────────────────────────────────────────────────
 function openOverlay(id, e){ if(e) e.preventDefault(); document.getElementById(id).classList.add('visible'); }
